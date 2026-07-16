@@ -1,5 +1,5 @@
 from typing import Annotated
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, status, Request
 from fastapi.security import OAuth2PasswordRequestForm
 
 from app.api.deps import ActiveSession, get_current_active_user, RoleChecker, has_permission
@@ -17,10 +17,24 @@ router = APIRouter()
     status_code=status.HTTP_201_CREATED,
     summary="Register a new system investigator user",
 )
-async def register(user_in: UserCreate, db: ActiveSession) -> User:
+async def register(
+    request: Request, user_in: UserCreate, db: ActiveSession
+) -> User:
     """Creates a new user account with active status and default 'Fraud Analyst' access permissions."""
     auth_service = AuthService(db)
     user = await auth_service.register_user(user_in)
+
+    # Audit log mapping
+    request.state.audit_action = "user_create"
+    request.state.audit_user_id = user.id
+    request.state.audit_status = "success"
+    request.state.audit_entity_name = "users"
+    request.state.audit_entity_id = user.id
+    request.state.audit_new_values = {
+        "email": user.email,
+        "full_name": user.full_name,
+    }
+
     return user
 
 
@@ -29,11 +43,35 @@ async def register(user_in: UserCreate, db: ActiveSession) -> User:
     response_model=Token,
     summary="Standard authentication login returning access and refresh JWT tokens",
 )
-async def login(credentials: UserLogin, db: ActiveSession) -> Token:
+async def login(
+    request: Request, credentials: UserLogin, db: ActiveSession
+) -> Token:
     """Authenticates a user via JSON payload email and password credentials, returning token details."""
     auth_service = AuthService(db)
-    user = await auth_service.authenticate(credentials.email, credentials.password)
+    try:
+        user = await auth_service.authenticate(
+            credentials.email, credentials.password
+          )
+    except Exception as e:
+        request.state.audit_action = "failed_login"
+        request.state.audit_status = "failed"
+        request.state.audit_entity_name = "auth"
+        request.state.audit_new_values = {
+            "email": credentials.email,
+            "error": getattr(e, "detail", str(e)),
+        }
+        raise e
+
     token = await auth_service.create_tokens(user.id)
+
+    # Audit log mapping
+    request.state.audit_action = "user_login"
+    request.state.audit_user_id = user.id
+    request.state.audit_status = "success"
+    request.state.audit_entity_name = "users"
+    request.state.audit_entity_id = user.id
+    request.state.audit_new_values = {"email": user.email}
+
     return token
 
 
@@ -43,12 +81,36 @@ async def login(credentials: UserLogin, db: ActiveSession) -> Token:
     summary="OAuth2 Password Flow login endpoint for Swagger UI compliance",
 )
 async def login_for_swagger(
-    form_data: Annotated[OAuth2PasswordRequestForm, Depends()], db: ActiveSession
+    request: Request,
+    form_data: Annotated[OAuth2PasswordRequestForm, Depends()],
+    db: ActiveSession,
 ) -> Token:
     """Authenticates credentials submitted through application/x-www-form-urlencoded (Swagger UI)."""
     auth_service = AuthService(db)
-    user = await auth_service.authenticate(form_data.username, form_data.password)
+    try:
+        user = await auth_service.authenticate(
+            form_data.username, form_data.password
+        )
+    except Exception as e:
+        request.state.audit_action = "failed_login"
+        request.state.audit_status = "failed"
+        request.state.audit_entity_name = "auth"
+        request.state.audit_new_values = {
+            "email": form_data.username,
+            "error": getattr(e, "detail", str(e)),
+        }
+        raise e
+
     token = await auth_service.create_tokens(user.id)
+
+    # Audit log mapping
+    request.state.audit_action = "user_login"
+    request.state.audit_user_id = user.id
+    request.state.audit_status = "success"
+    request.state.audit_entity_name = "users"
+    request.state.audit_entity_id = user.id
+    request.state.audit_new_values = {"email": user.email}
+
     return token
 
 
@@ -69,10 +131,26 @@ async def refresh(refresh_in: TokenRefreshRequest, db: ActiveSession) -> Token:
     status_code=status.HTTP_204_NO_CONTENT,
     summary="Invalidate active session refresh token to perform user logout",
 )
-async def logout(refresh_in: TokenRefreshRequest, db: ActiveSession) -> None:
+async def logout(
+    request: Request,
+    refresh_in: TokenRefreshRequest,
+    db: ActiveSession,
+) -> None:
     """Revokes the provided refresh token in the database to prevent further session access."""
     auth_service = AuthService(db)
+
+    # Pre-fetch user ID from the refresh token for audit log context
+    db_token = await auth_service.token_repo.get_by_token(refresh_in.refresh_token)
+    user_id = db_token.user_id if db_token else None
+
     await auth_service.revoke_token(refresh_in.refresh_token)
+
+    # Audit log mapping
+    request.state.audit_action = "user_logout"
+    request.state.audit_user_id = user_id
+    request.state.audit_status = "success"
+    request.state.audit_entity_name = "users"
+    request.state.audit_entity_id = user_id
 
 
 @router.get(

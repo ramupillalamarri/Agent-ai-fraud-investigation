@@ -1,5 +1,5 @@
 from typing import Annotated, List
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, HTTPException, status, Request
 from fastapi.security import OAuth2PasswordBearer
 import jwt
 import uuid
@@ -19,6 +19,7 @@ ActiveSession = Annotated[AsyncSession, Depends(get_db_session)]
 
 
 async def get_current_user(
+    request: Request,
     token: Annotated[str, Depends(oauth2_scheme)],
     db: ActiveSession,
 ) -> User:
@@ -45,6 +46,9 @@ async def get_current_user(
     user = await user_repo.get_with_roles(user_id)
     if user is None:
         raise credentials_exception
+
+    # Store authenticated user in request state for AuditLog middleware
+    request.state.user = user
 
     return user
 

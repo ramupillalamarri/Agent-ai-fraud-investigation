@@ -6,8 +6,9 @@ from app.api.v1.router import api_router
 from app.config.settings import settings
 from app.core.config import API_DESCRIPTION, API_TITLE, API_VERSION
 from app.core.logging import get_logger, setup_logging
-from app.database.database import async_engine, check_database_health
+from app.database.database import async_engine, check_database_health, AsyncSessionLocal
 from app.middleware.logging import LoggingMiddleware
+from app.middleware.audit import AuditLogMiddleware
 
 # 1. Initialize structured logging
 setup_logging()
@@ -28,7 +29,6 @@ async def lifespan(app: FastAPI):
         logger.info("Database connection successfully established.")
         # Seed default roles and admin account
         logger.info("Seeding default database roles and admin account...")
-        from app.database.database import AsyncSessionLocal
         from app.services.auth import AuthService
 
         async with AsyncSessionLocal() as db:
@@ -53,6 +53,7 @@ app = FastAPI(
     docs_url="/docs" if settings.DEBUG else None,
     redoc_url="/redoc" if settings.DEBUG else None,
 )
+app.state.db_session_maker = AsyncSessionLocal
 
 # 4. Register HTTP Middlewares
 # CORS Middleware
@@ -67,6 +68,9 @@ if settings.cors_origins_list:
 
 # Request-Response Correlation & Logging Middleware
 app.add_middleware(LoggingMiddleware)
+
+# Audit Logging Middleware
+app.add_middleware(AuditLogMiddleware)
 
 
 # 5. Define Basic Health Route

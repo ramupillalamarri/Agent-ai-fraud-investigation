@@ -61,6 +61,7 @@ async def override_get_db_session() -> AsyncGenerator[AsyncSession, None]:
 
 # Override the dependency inside app
 app.dependency_overrides[get_db_session] = override_get_db_session
+app.state.db_session_maker = TestSessionLocal
 
 
 @pytest_asyncio.fixture
