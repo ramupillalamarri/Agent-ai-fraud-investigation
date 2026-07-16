@@ -3,7 +3,7 @@ version: '3.8'
 services:
   db:
     image: postgres:16-alpine
-    container_name: fraud_investigation_db
+    container_name: fraud_investigation_db_prod
     restart: always
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-postgres}
@@ -12,7 +12,7 @@ services:
     ports:
       - "5432:5432"
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      - postgres_data_prod:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
       interval: 10s
@@ -22,19 +22,18 @@ services:
   web:
     build:
       context: .
-      dockerfile: Dockerfile.dev
-    container_name: fraud_investigation_api
+      dockerfile: Dockerfile
+    container_name: fraud_investigation_api_prod
     restart: always
     ports:
       - "8000:8000"
-    volumes:
-      - .:/app
-      - /app/.venv
     env_file:
       - .env
     environment:
       - POSTGRES_SERVER=db
       - POSTGRES_PORT=5432
+      - APP_ENV=production
+      - DEBUG=false
     depends_on:
       db:
         condition: service_healthy
@@ -43,9 +42,8 @@ services:
       interval: 10s
       timeout: 5s
       retries: 3
-      start_period: 10s
+      start_period: 15s
 
 volumes:
-  postgres_data:
+  postgres_data_prod:
     driver: local
-

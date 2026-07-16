@@ -1,0 +1,33 @@
+# Git
+.git
+.gitignore
+
+# Python
+**/__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+env/
+venv/
+.venv/
+ENV/
+env.bak/
+venv.bak/
+
+# Environment files
+.env
+
+# IDEs
+.vscode/
+.idea/
+
+# Testing and caching
+.pytest_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Docker configs
+docker-compose*.yml
+Dockerfile*
