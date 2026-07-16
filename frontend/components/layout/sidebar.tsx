@@ -29,7 +29,7 @@ const navigation: NavGroup[] = [
       { title: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
       { title: "Investigations", href: "/investigations", icon: FileSearch },
       { title: "Risk Monitor", href: "/risk-monitor", icon: Activity },
-      { title: "Alerts", href: "/alerts", icon: AlertTriangle, badge: 0 },
+      { title: "Alerts", href: "/alerts", icon: AlertTriangle },
     ],
   },
   {
@@ -94,8 +94,9 @@ export function Sidebar({ collapsed, onCollapse }: SidebarProps) {
                   </p>
                 )}
                 {group.items.map((item) => {
+                  if (!item.icon) return null;
                   const isActive = pathname === item.href || pathname.startsWith(item.href + "/");
-                  const Icon = item.icon!;
+                  const Icon = item.icon;
 
                   const link = (
                     <Link

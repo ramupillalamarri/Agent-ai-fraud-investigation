@@ -1,3 +1,5 @@
+import type * as React from "react";
+
 /** Base entity fields shared across domain models. */
 export interface BaseEntity {
   id: string;

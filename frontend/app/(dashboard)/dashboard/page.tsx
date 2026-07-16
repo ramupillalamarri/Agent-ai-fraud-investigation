@@ -148,6 +148,7 @@ export default function DashboardPage() {
           {quickActions.map((action) => (
             <button
               key={action.label}
+              type="button"
               className="group flex items-start gap-4 rounded-xl border border-border bg-card p-4 text-left transition-all hover:border-primary/30 hover:bg-accent"
             >
               <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 transition-colors group-hover:bg-primary/20">

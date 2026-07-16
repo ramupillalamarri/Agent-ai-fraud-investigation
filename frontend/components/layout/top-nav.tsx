@@ -138,7 +138,7 @@ export function TopNav({ onToggleSidebar }: TopNavProps) {
               <span className="text-[10px] leading-none text-muted-foreground">Lead Investigator</span>
             </div>
             <Avatar className="h-7 w-7">
-              <AvatarImage src="" alt="Alex Morgan" />
+              <AvatarImage src={undefined} alt="Alex Morgan" />
               <AvatarFallback className="bg-primary/20 text-xs font-semibold text-primary">
                 AM
               </AvatarFallback>
