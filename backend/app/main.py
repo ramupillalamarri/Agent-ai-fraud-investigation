@@ -27,11 +27,14 @@ async def lifespan(app: FastAPI):
         logger.info("Database connection successfully established.")
     except Exception as e:
         logger.critical(f"Failed to connect to database: {e}")
-        # Note: In production we might want to fail-fast, but in dev/test we continue
+        # Note: In production we might want to fail-fast,
+        # but in dev/test we continue
         if settings.APP_ENV == "production":
             raise e
 
-    logger.info(f"Starting {API_TITLE} version {API_VERSION} [{settings.APP_ENV}]")
+    logger.info(
+        f"Starting {API_TITLE} version {API_VERSION} [{settings.APP_ENV}]"
+    )
     yield
     # Shutdown tasks
     logger.info("Closing database engine connections...")
@@ -51,10 +54,10 @@ app = FastAPI(
 
 # 4. Register HTTP Middlewares
 # CORS Middleware
-if settings.BACKEND_CORS_ORIGINS:
+if settings.cors_origins_list:
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=[str(origin) for origin in settings.BACKEND_CORS_ORIGINS],
+        allow_origins=settings.cors_origins_list,
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],

@@ -20,7 +20,7 @@ class BaseRepository(Generic[ModelType]):
     async def get(self, id: Any) -> Optional[ModelType]:
         """Fetch a single record by primary key."""
         result = await self.db.execute(
-            select(self.model).filter(self.model.id == id) # type: ignore
+            select(self.model).filter(self.model.id == id)  # type: ignore
         )
         return result.scalars().first()
 
@@ -39,7 +39,7 @@ class BaseRepository(Generic[ModelType]):
             obj_data = obj_in
         else:
             obj_data = obj_in.model_dump(exclude_unset=True)
-            
+
         db_obj = self.model(**obj_data)
         self.db.add(db_obj)
         await self.db.commit()

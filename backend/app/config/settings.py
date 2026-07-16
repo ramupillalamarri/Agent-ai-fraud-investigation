@@ -1,6 +1,5 @@
 import urllib.parse
-from typing import List, Union
-from pydantic import field_validator
+from typing import List
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -20,18 +19,15 @@ class Settings(BaseSettings):
     SECRET_KEY: str = "replace_with_a_secure_random_key_in_production"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24 * 8  # 8 days
 
-    # CORS Configuration
-    # Accepts string representation of list or comma-separated strings
-    BACKEND_CORS_ORIGINS: Union[List[str], str] = []
+    # CORS Configuration - comma-separated string
+    BACKEND_CORS_ORIGINS: str = ""
 
-    @field_validator("BACKEND_CORS_ORIGINS", mode="before")
-    @classmethod
-    def assemble_cors_origins(cls, v: Union[str, List[str]]) -> List[str]:
-        if isinstance(v, str) and not v.startswith("["):
-            return [i.strip() for i in v.split(",") if i.strip()]
-        elif isinstance(v, list):
-            return [str(item) for item in v]
-        return []
+    @property
+    def cors_origins_list(self) -> List[str]:
+        """Parse BACKEND_CORS_ORIGINS string into a list."""
+        if not self.BACKEND_CORS_ORIGINS:
+            return []
+        return [origin.strip() for origin in self.BACKEND_CORS_ORIGINS.split(",") if origin.strip()]
 
     # Database Configuration
     POSTGRES_SERVER: str = "localhost"
@@ -56,7 +52,7 @@ class Settings(BaseSettings):
 
     @property
     def sync_database_url(self) -> str:
-        """Constructs the synchronous PostgreSQL connection URI (for Alembic)."""
+        """Constructs the sync PostgreSQL connection URI (for Alembic)."""
         user = urllib.parse.quote_plus(self.POSTGRES_USER)
         password = urllib.parse.quote_plus(self.POSTGRES_PASSWORD)
         return (

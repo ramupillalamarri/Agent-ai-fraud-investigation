@@ -41,16 +41,21 @@ def setup_logging() -> None:
                 }
                 # Inject extra parameters if present
                 if hasattr(record, "correlation_id"):
-                    log_data["correlation_id"] = record.correlation_id  # type: ignore
+                    log_data["correlation_id"] = (  # type: ignore
+                        record.correlation_id
+                    )
                 if record.exc_info:
-                    log_data["exception"] = self.formatException(record.exc_info)
+                    log_data["exception"] = self.formatException(
+                        record.exc_info
+                    )
                 return json.dumps(log_data)
 
         formatter = JsonFormatter()
     else:
         # Development Text Formatter
         formatter = logging.Formatter(
-            fmt="%(asctime)s [%(levelname)s] (%(name)s:%(filename)s:%(lineno)d) - %(message)s",
+            fmt="%(asctime)s [%(levelname)s] "
+            "(%(name)s:%(filename)s:%(lineno)d) - %(message)s",
             datefmt="%Y-%m-%d %H:%M:%S",
         )
 

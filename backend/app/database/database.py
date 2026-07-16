@@ -33,13 +33,15 @@ async def get_db_session() -> AsyncGenerator[AsyncSession, None]:
     """Dependency injection generator yielding an active AsyncSession.
 
     Ensures the connection is correctly returned to the pool or closed
-    upon request finalization, even when exceptions are raised in the route.
+    upon request finalization, even when exceptions are raised.
     """
     session = AsyncSessionLocal()
     try:
         yield session
     except Exception as e:
-        logger.error(f"Database session encountered an error, rolling back: {e}")
+        logger.error(
+            f"Database session error, rolling back: {e}"
+        )
         await session.rollback()
         raise
     finally:
