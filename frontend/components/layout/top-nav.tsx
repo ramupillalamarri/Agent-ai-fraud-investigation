@@ -3,7 +3,6 @@
 import { usePathname } from "next/navigation";
 import Link from "next/link";
 import {
-  Bell,
   Search,
   Menu,
   ChevronRight,
@@ -17,7 +16,6 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import {
   DropdownMenu,
@@ -28,9 +26,11 @@ import {
   DropdownMenuTrigger,
   DropdownMenuShortcut,
 } from "@/components/ui/dropdown-menu";
+import { NotificationPanel } from "@/components/shared/notification-panel";
 
 const ROUTE_LABELS: Record<string, string> = {
   dashboard: "Dashboard",
+  transactions: "Transactions",
   investigations: "Investigations",
   "risk-monitor": "Risk Monitor",
   alerts: "Alerts",
@@ -111,17 +111,7 @@ export function TopNav({ onToggleSidebar }: TopNavProps) {
       </div>
 
       {/* Notifications */}
-      <Button
-        variant="ghost"
-        size="icon"
-        className="relative h-8 w-8"
-        aria-label="Notifications"
-      >
-        <Bell className="h-4 w-4" />
-        <Badge className="absolute -right-0.5 -top-0.5 h-3.5 min-w-3.5 rounded-full px-0.5 text-[9px] font-bold">
-          3
-        </Badge>
-      </Button>
+      <NotificationPanel />
 
       <Separator orientation="vertical" className="h-5" />
 

@@ -15,6 +15,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Database,
+  CreditCard,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -27,6 +28,7 @@ const navigation: NavGroup[] = [
   {
     items: [
       { title: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
+      { title: "Transactions", href: "/transactions", icon: CreditCard },
       { title: "Investigations", href: "/investigations", icon: FileSearch },
       { title: "Risk Monitor", href: "/risk-monitor", icon: Activity },
       { title: "Alerts", href: "/alerts", icon: AlertTriangle },
