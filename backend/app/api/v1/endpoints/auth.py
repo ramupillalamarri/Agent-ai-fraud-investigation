@@ -2,7 +2,7 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, status
 from fastapi.security import OAuth2PasswordRequestForm
 
-from app.api.deps import ActiveSession, get_current_active_user, RoleChecker
+from app.api.deps import ActiveSession, get_current_active_user, RoleChecker, has_permission
 from app.models.user import User
 from app.schemas.user import UserCreate, UserResponse
 from app.schemas.auth import Token, UserLogin, TokenRefreshRequest
@@ -105,3 +105,48 @@ async def test_admin_only() -> dict:
 async def test_analyst_only() -> dict:
     """Test endpoint returning authorization messages for investigators/analysts."""
     return {"message": "Access granted: You are authorized as a Fraud Analyst or Administrator."}
+
+
+@router.post(
+    "/users",
+    summary="Create a new user (requires users:create permission)",
+    dependencies=[has_permission("users:create")],
+)
+async def create_user_endpoint() -> dict:
+    return {"message": "Permission granted: You can create users."}
+
+
+@router.delete(
+    "/users/{user_id}",
+    summary="Delete a user (requires users:delete permission)",
+    dependencies=[has_permission("users:delete")],
+)
+async def delete_user_endpoint(user_id: str) -> dict:
+    return {"message": f"Permission granted: You can delete user {user_id}."}
+
+
+@router.get(
+    "/dashboard",
+    summary="View dashboard (requires dashboard:view permission)",
+    dependencies=[has_permission("dashboard:view")],
+)
+async def view_dashboard_endpoint() -> dict:
+    return {"message": "Permission granted: You can view the dashboard."}
+
+
+@router.post(
+    "/investigate",
+    summary="Investigate fraud (requires fraud:investigate permission)",
+    dependencies=[has_permission("fraud:investigate")],
+)
+async def investigate_fraud_endpoint() -> dict:
+    return {"message": "Permission granted: You can investigate fraud."}
+
+
+@router.get(
+    "/reports",
+    summary="Generate reports (requires reports:generate permission)",
+    dependencies=[has_permission("reports:generate")],
+)
+async def generate_reports_endpoint() -> dict:
+    return {"message": "Permission granted: You can generate reports."}

@@ -78,3 +78,29 @@ class RoleChecker:
             )
         return current_user
 
+
+class PermissionChecker:
+    """Reusable permission authorization dependency checker."""
+
+    def __init__(self, required_permission: str):
+        self.required_permission = required_permission
+
+    def __call__(
+        self,
+        current_user: Annotated[User, Depends(get_current_active_user)],
+    ) -> User:
+        user_permissions = {
+            perm.name for role in current_user.roles for perm in role.permissions
+        }
+        if self.required_permission not in user_permissions:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=f"You do not have the required permission privileges ('{self.required_permission}') to access this endpoint.",
+            )
+        return current_user
+
+
+def has_permission(permission: str):
+    """Reusable endpoint dependency wrapper to enforce specific permission requirements."""
+    return Depends(PermissionChecker(permission))
+

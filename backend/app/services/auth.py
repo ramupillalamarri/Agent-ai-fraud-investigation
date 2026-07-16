@@ -9,9 +9,11 @@ from app.config.settings import settings
 from app.models.user import User
 from app.models.role import Role
 from app.models.refresh_token import RefreshToken
+from app.models.permission import Permission
 from app.repositories.user import UserRepository
 from app.repositories.role import RoleRepository
 from app.repositories.refresh_token import RefreshTokenRepository
+from app.repositories.permission import PermissionRepository
 from app.schemas.user import UserCreate
 from app.schemas.auth import Token
 
@@ -24,6 +26,7 @@ class AuthService:
         self.user_repo = UserRepository(User, db)
         self.role_repo = RoleRepository(Role, db)
         self.token_repo = RefreshTokenRepository(RefreshToken, db)
+        self.permission_repo = PermissionRepository(Permission, db)
 
     async def register_user(self, user_in: UserCreate) -> User:
         """Registers a new user, hashes password, and associates the default 'Fraud Analyst' role."""
@@ -174,7 +177,7 @@ class AuthService:
             await self.db.commit()
 
     async def seed_default_data(self) -> None:
-        """Seeds roles ('Admin', 'Fraud Analyst') and default admin account if not already initialized."""
+        """Seeds roles ('Admin', 'Fraud Analyst'), default permissions, and admin account if not initialized."""
         # 1. Seed Roles
         roles_to_seed = [
             ("Admin", "Super user with full operational authorization."),
@@ -186,11 +189,46 @@ class AuthService:
             role = await self.role_repo.get_by_name(role_name)
             if not role:
                 role = Role(name=role_name, description=role_desc)
+                role.permissions = []
                 self.db.add(role)
-                await self.db.flush()
             seeded_roles[role_name] = role
 
-        # 2. Seed Default Admin User
+        # 2. Seed Permissions
+        permissions_to_seed = [
+            ("users:create", "Ability to create new system user accounts."),
+            ("users:delete", "Ability to delete or soft-delete system user accounts."),
+            ("dashboard:view", "Ability to view the main intelligence dashboard."),
+            ("fraud:investigate", "Ability to triage transactions and investigate fraud cases."),
+            ("reports:generate", "Ability to generate and export analytics reports."),
+        ]
+
+        seeded_permissions = {}
+        for perm_name, perm_desc in permissions_to_seed:
+            perm = await self.permission_repo.get_by_name(perm_name)
+            if not perm:
+                perm = Permission(name=perm_name, description=perm_desc)
+                self.db.add(perm)
+            seeded_permissions[perm_name] = perm
+
+        # 3. Map Permissions to Roles
+        # Admin receives all permissions
+        for perm in seeded_permissions.values():
+            if perm not in seeded_roles["Admin"].permissions:
+                seeded_roles["Admin"].permissions.append(perm)
+                self.db.add(seeded_roles["Admin"])
+
+        # Fraud Analyst receives dashboard:view, fraud:investigate, reports:generate
+        analyst_perms = [
+            seeded_permissions["dashboard:view"],
+            seeded_permissions["fraud:investigate"],
+            seeded_permissions["reports:generate"],
+        ]
+        for perm in analyst_perms:
+            if perm not in seeded_roles["Fraud Analyst"].permissions:
+                seeded_roles["Fraud Analyst"].permissions.append(perm)
+                self.db.add(seeded_roles["Fraud Analyst"])
+
+        # 4. Seed Default Admin User
         admin_email = "admin@fraudinvestigation.com"
         admin_user = await self.user_repo.get_by_email(admin_email)
         if not admin_user:
