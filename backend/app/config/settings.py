@@ -22,7 +22,7 @@ class Settings(BaseSettings):
 
     # CORS Configuration
     # Accepts string representation of list or comma-separated strings
-    BACKEND_CORS_ORIGINS: List[str] = []
+    BACKEND_CORS_ORIGINS: Union[List[str], str] = []
 
     @field_validator("BACKEND_CORS_ORIGINS", mode="before")
     @classmethod
