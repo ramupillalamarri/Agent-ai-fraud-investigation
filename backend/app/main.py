@@ -26,6 +26,15 @@ async def lifespan(app: FastAPI):
             raise RuntimeError("Database connection could not be established.")
     else:
         logger.info("Database connection successfully established.")
+        # Seed default roles and admin account
+        logger.info("Seeding default database roles and admin account...")
+        from app.database.database import AsyncSessionLocal
+        from app.services.auth import AuthService
+
+        async with AsyncSessionLocal() as db:
+            auth_service = AuthService(db)
+            await auth_service.seed_default_data()
+        logger.info("Database seeding completed successfully.")
 
     logger.info(f"Starting {API_TITLE} version {API_VERSION} [{settings.APP_ENV}]")
     yield

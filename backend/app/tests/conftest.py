@@ -40,6 +40,14 @@ async def setup_test_db() -> AsyncGenerator[None, None]:
     """Create schema tables in the test database on setup; drop on teardown."""
     async with test_engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+
+    # Seed default roles and admin in the test database
+    from app.services.auth import AuthService
+
+    async with TestSessionLocal() as session:
+        auth_service = AuthService(session)
+        await auth_service.seed_default_data()
+
     yield
     async with test_engine.begin() as conn:
         await conn.run_sync(Base.metadata.drop_all)

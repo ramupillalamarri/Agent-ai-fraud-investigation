@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useMemo } from "react";
+import { useRouter } from "next/navigation";
 import {
   Plus,
   Search,
@@ -60,6 +61,7 @@ function countByStatus(invs: Investigation[], statuses: CaseStatus[] | "all") {
 }
 
 export default function InvestigationsPage() {
+  const router = useRouter();
   const [activeTab, setActiveTab] = useState("all");
   const [search, setSearch] = useState("");
   const [severityFilter, setSeverityFilter] = useState("all");
@@ -196,11 +198,21 @@ export default function InvestigationsPage() {
                       return (
                         <TableRow key={inv.id}>
                           <TableCell>
-                            <span className="font-mono text-xs text-muted-foreground">{inv.id}</span>
+                            <span
+                              className="cursor-pointer font-mono text-xs text-muted-foreground hover:text-primary hover:underline"
+                              onClick={() => router.push(`/investigations/${inv.id}`)}
+                            >
+                              {inv.id}
+                            </span>
                           </TableCell>
                           <TableCell>
                             <div className="max-w-sm">
-                              <p className="text-sm font-medium leading-snug">{inv.title}</p>
+                              <p
+                                className="cursor-pointer text-sm font-medium leading-snug hover:text-primary hover:underline"
+                                onClick={() => router.push(`/investigations/${inv.id}`)}
+                              >
+                                {inv.title}
+                              </p>
                               <div className="mt-1 flex flex-wrap gap-1">
                                 {inv.tags.slice(0, 2).map((tag) => (
                                   <span
@@ -258,7 +270,10 @@ export default function InvestigationsPage() {
                                 </Button>
                               </DropdownMenuTrigger>
                               <DropdownMenuContent align="end" className="w-44">
-                                <DropdownMenuItem className="gap-2">
+                                <DropdownMenuItem
+                                  className="gap-2 cursor-pointer"
+                                  onClick={() => router.push(`/investigations/${inv.id}`)}
+                                >
                                   <Eye className="h-4 w-4" /> View case
                                 </DropdownMenuItem>
                                 <DropdownMenuItem className="gap-2">

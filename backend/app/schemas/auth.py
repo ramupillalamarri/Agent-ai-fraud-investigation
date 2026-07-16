@@ -3,17 +3,25 @@ from pydantic import BaseModel, EmailStr
 
 
 class Token(BaseModel):
-    """Schema representing an active JWT authorization token."""
+    """Schema representing active JWT authorization tokens."""
 
     access_token: str
-    token_type: str
+    refresh_token: str
+    token_type: str = "bearer"
 
 
 class TokenPayload(BaseModel):
     """Schema representing the decoded JWT authorization claims."""
 
     sub: Optional[str] = None
+    type: Optional[str] = None
     scopes: List[str] = []
+
+
+class TokenRefreshRequest(BaseModel):
+    """Schema representing a refresh token rotation request."""
+
+    refresh_token: str
 
 
 class UserLogin(BaseModel):
@@ -21,3 +29,4 @@ class UserLogin(BaseModel):
 
     email: EmailStr
     password: str
+

@@ -2,6 +2,7 @@
 
 import { usePathname } from "next/navigation";
 import Link from "next/link";
+import { useState, useEffect } from "react";
 import {
   Search,
   Menu,
@@ -58,6 +59,35 @@ interface TopNavProps {
 
 export function TopNav({ onToggleSidebar }: TopNavProps) {
   const breadcrumbs = useBreadcrumbs();
+  const [userEmail, setUserEmail] = useState("alex.morgan@company.com");
+  const [userName, setUserName] = useState("Alex Morgan");
+  const [initials, setInitials] = useState("AM");
+
+  useEffect(() => {
+    const storedEmail = localStorage.getItem("user_email");
+    if (storedEmail) {
+      setUserEmail(storedEmail);
+      if (storedEmail.includes("admin")) {
+        setUserName("System Administrator");
+        setInitials("SA");
+      } else {
+        const namePart = storedEmail.split("@")[0];
+        const formattedName = namePart
+          .split(/[._-]/)
+          .map((p) => p.charAt(0).toUpperCase() + p.slice(1))
+          .join(" ");
+        setUserName(formattedName);
+        const nameParts = formattedName.split(" ");
+        setInitials(nameParts.map((n) => n[0]).join("").slice(0, 2).toUpperCase());
+      }
+    }
+  }, []);
+
+  const handleLogout = () => {
+    localStorage.removeItem("access_token");
+    localStorage.removeItem("refresh_token");
+    localStorage.removeItem("user_email");
+  };
 
   return (
     <header className="flex h-14 shrink-0 items-center gap-4 border-b border-border bg-background/95 px-4 backdrop-blur-sm lg:px-6">
@@ -124,13 +154,15 @@ export function TopNav({ onToggleSidebar }: TopNavProps) {
             aria-label="User menu"
           >
             <div className="hidden flex-col items-end text-right sm:flex">
-              <span className="text-xs font-medium leading-none">Alex Morgan</span>
-              <span className="text-[10px] leading-none text-muted-foreground">Lead Investigator</span>
+              <span className="text-xs font-medium leading-none">{userName}</span>
+              <span className="text-[10px] leading-none text-muted-foreground">
+                {userEmail.includes("admin") ? "Administrator" : "Lead Investigator"}
+              </span>
             </div>
             <Avatar className="h-7 w-7">
-              <AvatarImage src={undefined} alt="Alex Morgan" />
+              <AvatarImage src={undefined} alt={userName} />
               <AvatarFallback className="bg-primary/20 text-xs font-semibold text-primary">
-                AM
+                {initials}
               </AvatarFallback>
             </Avatar>
           </Button>
@@ -138,13 +170,13 @@ export function TopNav({ onToggleSidebar }: TopNavProps) {
         <DropdownMenuContent align="end" className="w-52" sideOffset={8}>
           <DropdownMenuLabel className="pb-1">
             <div className="flex flex-col">
-              <span className="text-sm font-semibold">Alex Morgan</span>
-              <span className="text-xs font-normal text-muted-foreground">alex.morgan@company.com</span>
+              <span className="text-sm font-semibold">{userName}</span>
+              <span className="text-xs font-normal text-muted-foreground">{userEmail}</span>
             </div>
           </DropdownMenuLabel>
           <DropdownMenuSeparator />
           <DropdownMenuItem asChild>
-            <Link href="/settings/profile" className="flex cursor-pointer items-center">
+            <Link href="/settings" className="flex cursor-pointer items-center">
               <User className="mr-2 h-4 w-4" />
               Profile
               <DropdownMenuShortcut>⌘P</DropdownMenuShortcut>
@@ -172,7 +204,11 @@ export function TopNav({ onToggleSidebar }: TopNavProps) {
             Help & Support
           </DropdownMenuItem>
           <DropdownMenuSeparator />
-          <DropdownMenuItem className="text-destructive focus:text-destructive" asChild>
+          <DropdownMenuItem
+            className="text-destructive focus:text-destructive"
+            onClick={handleLogout}
+            asChild
+          >
             <Link href="/login" className="flex cursor-pointer items-center">
               <LogOut className="mr-2 h-4 w-4" />
               Sign out
