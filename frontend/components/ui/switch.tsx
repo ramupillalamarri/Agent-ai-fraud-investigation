@@ -3,24 +3,33 @@
 import * as React from "react";
 import { cn } from "@/lib/utils";
 
-interface SwitchProps {
+interface SwitchProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   checked?: boolean;
-  defaultChecked?: boolean;
   onCheckedChange?: (checked: boolean) => void;
-  disabled?: boolean;
-  id?: string;
-  className?: string;
-  "aria-label"?: string;
 }
 
 const Switch = React.forwardRef<HTMLButtonElement, SwitchProps>(
-  ({ checked, defaultChecked = false, onCheckedChange, disabled, id, className, "aria-label": ariaLabel }, ref) => {
+  (
+    {
+      checked,
+      defaultChecked = false,
+      onCheckedChange,
+      disabled,
+      id,
+      className,
+      "aria-label": ariaLabel,
+      onClick,
+      ...props
+    },
+    ref
+  ) => {
     const [internalChecked, setInternalChecked] = React.useState(defaultChecked);
     const isControlled = checked !== undefined;
     const isChecked = isControlled ? checked : internalChecked;
 
-    function handleClick() {
+    function handleClick(e: React.MouseEvent<HTMLButtonElement>) {
       if (disabled) return;
+      onClick?.(e);
       const next = !isChecked;
       if (!isControlled) setInternalChecked(next);
       onCheckedChange?.(next);
@@ -44,6 +53,7 @@ const Switch = React.forwardRef<HTMLButtonElement, SwitchProps>(
           isChecked ? "bg-primary" : "bg-input",
           className,
         )}
+        {...props}
       >
         <span
           aria-hidden="true"
@@ -59,3 +69,4 @@ const Switch = React.forwardRef<HTMLButtonElement, SwitchProps>(
 Switch.displayName = "Switch";
 
 export { Switch };
+

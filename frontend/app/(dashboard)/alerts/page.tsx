@@ -188,7 +188,7 @@ export default function AlertsPage() {
       </Card>
 
       {/* Tabs and Alerts List */}
-      <Tabs defaultValue="all">
+      <Tabs value={statusFilter} onValueChange={(v) => setStatusFilter(v as AlertStatus | "all")}>
         <TabsList className="h-auto gap-0.5 mb-4">
           {[
             { value: "all", label: "All" },
