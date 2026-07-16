@@ -45,9 +45,7 @@ async def setup_test_db() -> AsyncGenerator[None, None]:
         await conn.run_sync(Base.metadata.drop_all)
 
 
-async def override_get_db_session() -> (
-    AsyncGenerator[AsyncSession, None]
-):
+async def override_get_db_session() -> AsyncGenerator[AsyncSession, None]:
     """Overrides the database session dependency for testing."""
     async with TestSessionLocal() as session:
         yield session

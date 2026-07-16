@@ -1,4 +1,5 @@
 from typing import AsyncGenerator
+from sqlalchemy import text
 from sqlalchemy.ext.asyncio import (
     AsyncSession,
     async_sessionmaker,
@@ -39,10 +40,22 @@ async def get_db_session() -> AsyncGenerator[AsyncSession, None]:
     try:
         yield session
     except Exception as e:
-        logger.error(
-            f"Database session error, rolling back: {e}"
-        )
+        logger.error(f"Database session error, rolling back: {e}")
         await session.rollback()
         raise
     finally:
         await session.close()
+
+
+async def check_database_health() -> bool:
+    """Checks the database health by executing a simple SELECT 1 query.
+
+    Returns True if the database is reachable and responsive, False otherwise.
+    """
+    try:
+        async with async_engine.connect() as conn:
+            await conn.execute(text("SELECT 1"))
+        return True
+    except Exception as e:
+        logger.error(f"Database health check failed: {e}")
+        return False

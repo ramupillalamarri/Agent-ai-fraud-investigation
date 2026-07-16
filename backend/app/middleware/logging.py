@@ -14,9 +14,7 @@ class LoggingMiddleware(BaseHTTPMiddleware):
     Ensures every log trace has an associated request trace identifier.
     """
 
-    async def dispatch(
-        self, request: Request, call_next: Callable
-    ) -> Response:
+    async def dispatch(self, request: Request, call_next: Callable) -> Response:
         # Resolve or generate correlation ID
         correlation_id = request.headers.get("X-Correlation-ID")
         if not correlation_id:

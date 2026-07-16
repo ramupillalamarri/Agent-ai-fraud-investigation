@@ -10,9 +10,7 @@ from app.database.database import get_db_session
 from app.schemas.auth import TokenPayload
 
 # OAuth2 Password flow scheme pointing to a hypothetical auth token route
-oauth2_scheme = OAuth2PasswordBearer(
-    tokenUrl=f"{settings.API_V1_STR}/auth/token"
-)
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl=f"{settings.API_V1_STR}/auth/token")
 
 # Active Database Session injection type alias
 ActiveSession = Annotated[AsyncSession, Depends(get_db_session)]
@@ -33,9 +31,7 @@ async def get_current_user(
     )
     try:
         # Decodes the JWT token claims
-        payload = jwt.decode(
-            token, settings.SECRET_KEY, algorithms=["HS256"]
-        )
+        payload = jwt.decode(token, settings.SECRET_KEY, algorithms=["HS256"])
         username: str = payload.get("sub")  # type: ignore
         if username is None:
             raise credentials_exception
@@ -53,12 +49,11 @@ async def get_current_user(
 
 
 async def get_current_active_user(
-    current_user: Annotated[dict, Depends(get_current_user)]
+    current_user: Annotated[dict, Depends(get_current_user)],
 ) -> dict:
     """Dependency injection helper checking that the user is active."""
     if not current_user.get("is_active", False):
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Inactive user"
+            status_code=status.HTTP_400_BAD_REQUEST, detail="Inactive user"
         )
     return current_user

@@ -5,10 +5,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
-        env_file=".env",
-        env_file_encoding="utf-8",
-        case_sensitive=True,
-        extra="ignore"
+        env_file=".env", env_file_encoding="utf-8", case_sensitive=True, extra="ignore"
     )
 
     # General App Configuration
@@ -27,7 +24,11 @@ class Settings(BaseSettings):
         """Parse BACKEND_CORS_ORIGINS string into a list."""
         if not self.BACKEND_CORS_ORIGINS:
             return []
-        return [origin.strip() for origin in self.BACKEND_CORS_ORIGINS.split(",") if origin.strip()]
+        return [
+            origin.strip()
+            for origin in self.BACKEND_CORS_ORIGINS.split(",")
+            if origin.strip()
+        ]
 
     # Database Configuration
     POSTGRES_SERVER: str = "localhost"
