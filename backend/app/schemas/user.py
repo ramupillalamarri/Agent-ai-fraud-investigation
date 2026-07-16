@@ -36,3 +36,22 @@ class UserResponse(UserBase):
     created_at: datetime
     updated_at: datetime
     roles: list[RoleResponse] = []
+
+
+class UserAdminCreate(UserCreate):
+    """Schema representing admin user creation, including explicit roles specification."""
+
+    role_names: list[str] = ["Fraud Analyst"]
+
+
+class UserAdminUpdate(UserUpdate):
+    """Schema representing admin user modification, including optional roles changes."""
+
+    role_names: list[str] | None = None
+
+
+class PaginatedUserResponse(BaseModel):
+    """Schema representing a paginated response of user records."""
+
+    users: list[UserResponse]
+    total: int
