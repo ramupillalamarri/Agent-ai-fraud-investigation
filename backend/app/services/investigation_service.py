@@ -311,3 +311,31 @@ class InvestigationService(BaseService[InvestigationRepository]):
         except SQLAlchemyError as err:
             await self.repository.db.rollback()
             raise InvestigationServiceException(f"Database update failure: {str(err)}")
+
+    async def delete_investigation(self, investigation_id: str) -> Investigation:
+        """Soft deletes the investigation by updating its status to 'DELETED'."""
+        try:
+            uid = uuid.UUID(investigation_id)
+        except (ValueError, TypeError) as e:
+            raise InvestigationServiceException(f"Invalid UUID: {str(e)}")
+
+        try:
+            inv = await self.repository.get_by_id(uid)
+            if not inv:
+                raise InvestigationServiceException(f"Investigation not found for ID: {investigation_id}")
+            
+            inv.status = "DELETED"
+            inv.timeline.append(
+                TimelineModel(
+                    investigation_id=uid,
+                    event_type="INVESTIGATION_DELETED",
+                    event_description="Investigation soft-deleted (status set to DELETED).",
+                    agent_name="System"
+                )
+            )
+            await self.repository.update_investigation(inv)
+            logger.info("Soft-deleted investigation ID: %s", investigation_id)
+            return inv
+        except SQLAlchemyError as err:
+            await self.repository.db.rollback()
+            raise InvestigationServiceException(f"Database update failure: {str(err)}")

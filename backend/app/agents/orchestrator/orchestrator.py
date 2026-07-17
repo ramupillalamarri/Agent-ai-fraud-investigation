@@ -208,6 +208,7 @@ class InvestigationOrchestrator:
         # Store metrics on report metadata if requested
         # Wait, report.model_dump() doesn't have a direct metadata field, but we can store it in execution history or context metadata
         context.metadata["orchestrator_metrics"] = metrics
+        context.metadata["agent_results"] = agent_results
         
         self.after_investigation(context, report)
         
