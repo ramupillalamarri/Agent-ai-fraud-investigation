@@ -1,132 +1,124 @@
-"""Categorical encoding and numeric scaling module."""
+"""Categorical feature encoding module supporting OneHot, Ordinal, and Label encoders."""
 
 import pandas as pd
-from typing import Optional, Dict
-from sklearn.preprocessing import OneHotEncoder, StandardScaler, RobustScaler, MinMaxScaler
+import numpy as np
+from typing import Optional, List, Dict, Union, Any
+from sklearn.preprocessing import OneHotEncoder, OrdinalEncoder, LabelEncoder
 from ml.config import PreprocessingConfig
 from ml.utils.logger import get_ml_logger
 
 logger = get_ml_logger(__name__)
 
 class DataEncoder:
-    """Manages encoding of categorical variables and scaling of numerical features."""
+    """Manages auto-detection and encoding of categorical fields and target labels.
+    
+    Stores fitted scikit-learn encoders internally to support repeatable transformations 
+    during real-time prediction and model inference.
+    """
 
-    def __init__(self, config: Optional[PreprocessingConfig] = None) -> None:
+    def __init__(
+        self, 
+        config: Optional[PreprocessingConfig] = None,
+        encoding_strategy: str = "onehot"  # options: "onehot", "ordinal"
+    ) -> None:
         """Initializes the encoder configurations.
         
         Args:
-            config: Preprocessing configurations defining columns and methods.
+            config: Preprocessing configurations containing predefined columns.
+            encoding_strategy: Choice of categorical encoding ("onehot" or "ordinal").
         """
         self.config = config or PreprocessingConfig()
-        self.cat_encoder: Optional[OneHotEncoder] = None
-        self.num_scaler = None
-        self.encoded_feature_names: list[str] = []
-        logger.info("Initialized DataEncoder with scaling method: %s", self.config.scaling_method)
+        self.encoding_strategy = encoding_strategy.lower()
+        
+        # Encoders stored for inference serialization
+        self.one_hot_encoder: Optional[OneHotEncoder] = None
+        self.ordinal_encoder: Optional[OrdinalEncoder] = None
+        self.label_encoders: Dict[str, LabelEncoder] = {}
+        
+        self.categorical_cols: List[str] = []
+        self.one_hot_feature_names: List[str] = []
+        
+        logger.info("Initialized DataEncoder with encoding strategy: %s", self.encoding_strategy)
 
-    def fit(self, df: pd.DataFrame) -> "DataEncoder":
-        """Fits encoders and scalers on the training dataset.
+    def detect_categorical_columns(self, df: pd.DataFrame) -> List[str]:
+        """Automatically identifies categorical columns based on dtype or config.
         
         Args:
-            df: Input training DataFrame (already cleaned).
+            df: Input DataFrame.
+            
+        Returns:
+            List[str]: Names of categorical columns.
+        """
+        # Combine config columns with actual dataframe columns of object/category dtypes
+        config_cats = set(self.config.categorical_columns)
+        detected_cats = set(df.select_dtypes(include=["object", "category", "bool"]).columns)
+        
+        # Exclude ID or Datetime columns from encoding
+        exclusions = set(self.config.id_columns + self.config.datetime_columns + [self.config.target_column])
+        
+        final_cats = list((config_cats | detected_cats) - exclusions)
+        # Filter to make sure they exist in the input dataframe
+        final_cats = [col for col in final_cats if col in df.columns]
+        
+        logger.info("Auto-detected %d categorical columns for encoding: %s", len(final_cats), final_cats)
+        return final_cats
+
+    def fit(self, df: pd.DataFrame, target_col: Optional[str] = None) -> "DataEncoder":
+        """Identifies columns and fits selected encoding strategies.
+        
+        Args:
+            df: Input training DataFrame.
+            target_col: Optional name of the label column to fit a LabelEncoder on.
             
         Returns:
             DataEncoder: Fitted encoder instance.
         """
-        logger.info("Fitting DataEncoder on DataFrame of shape %s", df.shape)
-        
+        logger.info("Fitting DataEncoder...")
         try:
-            # 1. Fit Categorical OneHotEncoder
-            cat_cols = [c for c in self.config.categorical_columns if c in df.columns]
-            if cat_cols:
-                # Use sparse_output=False for convenient dataframe manipulation
-                self.cat_encoder = OneHotEncoder(
-                    handle_unknown="ignore", 
-                    sparse_output=False
-                )
-                self.cat_encoder.fit(df[cat_cols])
-                
-                # Retrieve generated feature names
-                feature_names = self.cat_encoder.get_feature_names_out(cat_cols)
-                self.encoded_feature_names = list(feature_names)
-                logger.info("Fitted OneHotEncoder for columns: %s. Output features count: %d", cat_cols, len(self.encoded_feature_names))
-            else:
-                logger.warning("No categorical columns found to fit in the input DataFrame")
-
-            # 2. Fit Numeric Scaler
-            num_cols = [c for c in self.config.numerical_columns if c in df.columns]
-            if num_cols:
-                if self.config.scaling_method == "standard":
-                    self.num_scaler = StandardScaler()
-                elif self.config.scaling_method == "minmax":
-                    self.num_scaler = MinMaxScaler()
-                elif self.config.scaling_method == "robust":
-                    self.num_scaler = RobustScaler()
-                else:
-                    logger.warning("Unknown scaling method '%s', defaulting to RobustScaler", self.config.scaling_method)
-                    self.num_scaler = RobustScaler()
-                
-                self.num_scaler.fit(df[num_cols])
-                logger.info("Fitted numerical scaler on columns: %s", num_cols)
-            else:
-                logger.warning("No numerical columns found to fit in the input DataFrame")
-                
+            # 1. Detect columns
+            self.categorical_cols = self.detect_categorical_columns(df)
+            
+            # 2. Fit Feature Encoders
+            if self.categorical_cols:
+                if self.encoding_strategy == "onehot":
+                    self.one_hot_encoder = OneHotEncoder(
+                        handle_unknown="ignore", 
+                        sparse_output=False,
+                        dtype=np.float32
+                    )
+                    self.one_hot_encoder.fit(df[self.categorical_cols])
+                    # Store generated columns names
+                    names = self.one_hot_encoder.get_feature_names_out(self.categorical_cols)
+                    self.one_hot_feature_names = list(names)
+                    logger.info("Fitted OneHotEncoder on %s columns", len(self.categorical_cols))
+                    
+                elif self.encoding_strategy == "ordinal":
+                    self.ordinal_encoder = OrdinalEncoder(
+                        handle_unknown="use_encoded_value", 
+                        unknown_value=-1,
+                        dtype=np.float32
+                    )
+                    self.ordinal_encoder.fit(df[self.categorical_cols])
+                    logger.info("Fitted OrdinalEncoder on %s columns", len(self.categorical_cols))
+                    
+            # 3. Fit Target LabelEncoder if target is passed and categorical
+            actual_target = target_col or self.config.target_column
+            if actual_target in df.columns:
+                target_series = df[actual_target]
+                # Only LabelEncode if target is not numeric
+                if target_series.dtype == "object" or target_series.dtype == "category":
+                    logger.info("Fitting LabelEncoder on target: %s", actual_target)
+                    l_enc = LabelEncoder()
+                    l_enc.fit(target_series)
+                    self.label_encoders[actual_target] = l_enc
+                    
             return self
         except Exception as e:
-            logger.error("Error during DataEncoder fit: %s", str(e))
+            logger.error("Failed to fit DataEncoder: %s", str(e))
             raise
 
     def transform(self, df: pd.DataFrame) -> pd.DataFrame:
-        """Encodes and scales columns of the input DataFrame.
-        
-        Args:
-            df: Cleaned input DataFrame to encode and scale.
-            
-        Returns:
-            pd.DataFrame: DataFrame containing transformed features, keeping ID fields.
-        """
-        logger.info("Transforming DataFrame of shape %s with DataEncoder", df.shape)
-        
-        try:
-            transformed_df = df.copy()
-            
-            # 1. Apply Categorical OneHotEncoding
-            cat_cols = [c for c in self.config.categorical_columns if c in df.columns]
-            if cat_cols and self.cat_encoder is not None:
-                encoded_arr = self.cat_encoder.transform(df[cat_cols])
-                encoded_df = pd.DataFrame(
-                    encoded_arr, 
-                    columns=self.encoded_feature_names, 
-                    index=df.index
-                )
-                # Drop original categorical columns and concatenate encoded columns
-                transformed_df = transformed_df.drop(columns=cat_cols)
-                transformed_df = pd.concat([transformed_df, encoded_df], axis=1)
-                logger.debug("Applied categorical encoding.")
-                
-            # 2. Apply Numerical Scaling
-            num_cols = [c for c in self.config.numerical_columns if c in df.columns]
-            if num_cols and self.num_scaler is not None:
-                scaled_arr = self.num_scaler.transform(df[num_cols])
-                scaled_df = pd.DataFrame(
-                    scaled_arr, 
-                    columns=num_cols, 
-                    index=df.index
-                )
-                # Replace numerical columns with scaled versions
-                for col in num_cols:
-                    transformed_df[col] = scaled_df[col]
-                logger.debug("Applied numerical scaling.")
-                
-            # TODO: Handle encoding alignment validation for unseen inputs
-            
-            logger.info("Completed encoding and scaling. Output shape: %s", transformed_df.shape)
-            return transformed_df
-        except Exception as e:
-            logger.error("Error during DataEncoder transform: %s", str(e))
-            raise
-
-    def fit_transform(self, df: pd.DataFrame) -> pd.DataFrame:
-        """Fits on training set and transforms in one step.
+        """Applies fitted encoding strategies on the input DataFrame.
         
         Args:
             df: Input DataFrame.
@@ -134,4 +126,84 @@ class DataEncoder:
         Returns:
             pd.DataFrame: Transformed DataFrame.
         """
-        return self.fit(df).transform(df)
+        logger.info("Encoding categorical columns...")
+        try:
+            encoded_df = df.copy()
+            
+            if not self.categorical_cols:
+                logger.info("No categorical columns to encode.")
+                return encoded_df
+                
+            # 1. Apply Categorical Encoding
+            if self.encoding_strategy == "onehot" and self.one_hot_encoder is not None:
+                encoded_arr = self.one_hot_encoder.transform(df[self.categorical_cols])
+                one_hot_df = pd.DataFrame(
+                    encoded_arr, 
+                    columns=self.one_hot_feature_names, 
+                    index=df.index
+                )
+                # Drop original categorical columns and append one-hot columns
+                encoded_df = encoded_df.drop(columns=self.categorical_cols)
+                encoded_df = pd.concat([encoded_df, one_hot_df], axis=1)
+                
+            elif self.encoding_strategy == "ordinal" and self.ordinal_encoder is not None:
+                encoded_arr = self.ordinal_encoder.transform(df[self.categorical_cols])
+                encoded_df[self.categorical_cols] = encoded_arr
+                
+            # 2. Apply Label Encoding for target if needed
+            for col, l_enc in self.label_encoders.items():
+                if col in encoded_df.columns:
+                    logger.debug("Applying LabelEncoder on column: %s", col)
+                    encoded_df[col] = l_enc.transform(encoded_df[col].astype(str))
+                    
+            logger.debug("Encoding complete. Categorical columns encoded.")
+            return encoded_df
+        except Exception as e:
+            logger.error("Failed to apply encoding transformations: %s", str(e))
+            raise
+
+    def fit_transform(self, df: pd.DataFrame, target_col: Optional[str] = None) -> pd.DataFrame:
+        """Fits on training set and encodes in one step.
+        
+        Args:
+            df: Input DataFrame.
+            target_col: Target column name.
+            
+        Returns:
+            pd.DataFrame: Encoded DataFrame.
+        """
+        return self.fit(df, target_col).transform(df)
+        
+    def encode_column_labels(self, labels: pd.Series, col_name: str) -> pd.Series:
+        """Utility method to fit or transform target columns dynamically.
+        
+        Args:
+            labels: Input Series.
+            col_name: Column identifier to cache.
+            
+        Returns:
+            pd.Series: Encoded labels.
+        """
+        if col_name not in self.label_encoders:
+            logger.info("Initializing new LabelEncoder for column '%s'", col_name)
+            self.label_encoders[col_name] = LabelEncoder()
+            return pd.Series(self.label_encoders[col_name].fit_transform(labels.astype(str)), index=labels.index)
+        
+        return pd.Series(self.label_encoders[col_name].transform(labels.astype(str)), index=labels.index)
+
+    def decode_column_labels(self, encoded_labels: Union[pd.Series, np.ndarray], col_name: str) -> np.ndarray:
+        """Utility method to decode encoded numerical values back to strings.
+        
+        Args:
+            encoded_labels: Encoded category values.
+            col_name: Column identifier containing the cached encoder.
+            
+        Returns:
+            np.ndarray: Decoded category labels.
+        """
+        if col_name not in self.label_encoders:
+            error_msg = f"No fitted LabelEncoder found for column '{col_name}'"
+            logger.error(error_msg)
+            raise ValueError(error_msg)
+            
+        return self.label_encoders[col_name].inverse_transform(encoded_labels)

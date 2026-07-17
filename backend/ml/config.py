@@ -15,6 +15,7 @@ class PathConfig:
     raw_data_dir: str = field(default_factory=lambda: os.path.join(os.path.dirname(os.path.abspath(__file__)), "datasets", "raw"))
     processed_data_dir: str = field(default_factory=lambda: os.path.join(os.path.dirname(os.path.abspath(__file__)), "datasets", "processed"))
     model_save_dir: str = field(default_factory=lambda: os.path.join(os.path.dirname(os.path.abspath(__file__)), "saved_models"))
+    preprocessor_save_dir: str = field(default_factory=lambda: os.path.join(os.path.dirname(os.path.abspath(__file__)), "preprocessors"))
 
 @dataclass(frozen=True)
 class PreprocessingConfig:

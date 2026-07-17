@@ -1,81 +1,123 @@
-"""Data loading module for fetching raw records and saving processed features."""
+"""Data loading and schema validation module for raw transaction records."""
 
 import os
 import pandas as pd
-from typing import Optional
-from ml.config import PathConfig
+from typing import Optional, List, Dict, Any
+from ml.config import PathConfig, PreprocessingConfig
 from ml.utils.logger import get_ml_logger
 
 logger = get_ml_logger(__name__)
 
 class DataLoader:
-    """Handles raw data loading and storage of processed intermediate states."""
+    """Handles raw CSV/Parquet data loading, existence checking, target verification, and schema validation."""
 
-    def __init__(self, path_config: Optional[PathConfig] = None) -> None:
-        """Initializes the loader with specific path parameters.
+    def __init__(
+        self, 
+        path_config: Optional[PathConfig] = None,
+        preprocessing_config: Optional[PreprocessingConfig] = None
+    ) -> None:
+        """Initializes the loader with configurations.
         
         Args:
-            path_config: Optional path configurations. If none, defaults are used.
+            path_config: Optional path configurations.
+            preprocessing_config: Optional preprocessing parameters (for target column and schema checks).
         """
         self.path_config = path_config or PathConfig()
-        logger.info("Initialized DataLoader with base directory: %s", self.path_config.base_dir)
+        self.preprocessing_config = preprocessing_config or PreprocessingConfig()
+        logger.info("Initialized DataLoader")
 
-    def load_raw_dataset(self, filename: str) -> pd.DataFrame:
-        """Loads a raw dataset file (CSV or Parquet) from the raw datasets folder.
+    def validate_file_existence(self, file_path: str) -> None:
+        """Verifies that the target file exists on disk.
         
         Args:
-            filename: Name of the file inside raw_data_dir (e.g. 'transactions.csv').
-            
-        Returns:
-            pd.DataFrame: Loaded dataset.
+            file_path: Absolute or relative path to the file.
             
         Raises:
-            FileNotFoundError: If the specified file does not exist.
+            FileNotFoundError: If the file does not exist.
         """
-        file_path = os.path.join(self.path_config.raw_data_dir, filename)
         if not os.path.exists(file_path):
-            error_msg = f"Raw data file not found at path: {file_path}"
+            error_msg = f"Data file not found at path: {file_path}"
             logger.error(error_msg)
             raise FileNotFoundError(error_msg)
-            
-        logger.info("Loading raw dataset from %s", file_path)
-        
-        try:
-            # Check format and load accordingly
-            if filename.endswith(".csv"):
-                df = pd.read_csv(file_path)
-            elif filename.endswith(".parquet") or filename.endswith(".pq"):
-                df = pd.read_parquet(file_path)
-            else:
-                # TODO: Add support for JSON/JSONL format if required by raw logs
-                raise ValueError(f"Unsupported file format: {filename}")
-                
-            logger.info("Successfully loaded dataset with shape %s from %s", df.shape, filename)
-            return df
-        except Exception as e:
-            logger.error("Error loading file %s: %s", filename, str(e))
-            raise
+        logger.debug("File existence verified: %s", file_path)
 
-    def save_processed_dataset(self, df: pd.DataFrame, filename: str) -> None:
-        """Saves a processed Pandas DataFrame to the processed data directory.
+    def validate_target_column(self, df: pd.DataFrame, target_column: str) -> None:
+        """Ensures the dataset contains the required classification target label column.
         
         Args:
-            df: The processed Pandas DataFrame to save.
-            filename: The target filename (e.g. 'features.parquet').
+            df: Loaded Pandas DataFrame.
+            target_column: The expected target label column name.
+            
+        Raises:
+            ValueError: If the target column is missing.
         """
-        os.makedirs(self.path_config.processed_data_dir, exist_ok=True)
-        file_path = os.path.join(self.path_config.processed_data_dir, filename)
+        if target_column not in df.columns:
+            error_msg = f"Target column '{target_column}' is missing from the dataset."
+            logger.error(error_msg)
+            raise ValueError(error_msg)
+        logger.debug("Target column presence verified: %s", target_column)
+
+    def validate_schema(self, df: pd.DataFrame, expected_columns: List[str]) -> None:
+        """Checks that all essential columns defined in the schema are present in the dataset.
         
-        logger.info("Saving processed dataset of shape %s to %s", df.shape, file_path)
+        Args:
+            df: Loaded Pandas DataFrame.
+            expected_columns: List of columns required by the pipeline.
+            
+        Raises:
+            ValueError: If any expected columns are missing.
+        """
+        missing_columns = [col for col in expected_columns if col not in df.columns]
+        if missing_columns:
+            error_msg = f"Schema validation failed. Missing required columns: {missing_columns}"
+            logger.error(error_msg)
+            raise ValueError(error_msg)
+        logger.debug("Schema column presence validation succeeded.")
+
+    def load_csv(self, file_path: str) -> pd.DataFrame:
+        """Loads a raw CSV dataset and runs schema and target validations.
         
+        Args:
+            file_path: The exact path to the CSV file.
+            
+        Returns:
+            pd.DataFrame: Loaded and validated DataFrame.
+        """
+        self.validate_file_existence(file_path)
+        
+        logger.info("Loading dataset from %s", file_path)
         try:
-            if filename.endswith(".csv"):
-                df.to_csv(file_path, index=False)
-            elif filename.endswith(".parquet") or filename.endswith(".pq"):
-                df.to_parquet(file_path, index=False)
-            else:
-                raise ValueError(f"Unsupported export format: {filename}")
-            logger.info("Successfully saved processed dataset.")
+            df = pd.read_csv(file_path)
+            logger.info("Successfully loaded CSV dataset with shape %s", df.shape)
+            
+            # Run schema validations
+            target_col = self.preprocessing_config.target_column
+            self.validate_target_column(df, target_col)
+            
+            # Assemble expected columns list from config
+            expected_cols = (
+                self.preprocessing_config.numerical_columns +
+                self.preprocessing_config.categorical_columns +
+                self.preprocessing_config.datetime_columns +
+                self.preprocessing_config.id_columns
+            )
+            
+            # Filter expected columns to exclude target (which is checked separately)
+            self.validate_schema(df, expected_cols)
+            
+            return df
         except Exception as e:
-            logger.error("Error saving processed dataset: %s", str(e))
+            logger.error("Failed to load or validate dataset: %s", str(e))
             raise
+
+    def load_raw_dataset(self, filename: str) -> pd.DataFrame:
+        """Loader proxy method pointing to raw_data_dir for backward compatibility.
+        
+        Args:
+            filename: Name of the raw data file.
+            
+        Returns:
+            pd.DataFrame: Loaded and validated DataFrame.
+        """
+        file_path = os.path.join(self.path_config.raw_data_dir, filename)
+        return self.load_csv(file_path)
