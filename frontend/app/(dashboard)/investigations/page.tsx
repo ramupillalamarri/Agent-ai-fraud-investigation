@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import {
   Plus,
@@ -11,14 +11,7 @@ import {
   ChevronRight,
   MoreHorizontal,
   Eye,
-  UserPlus,
-  ArrowUpRight,
-  Clock,
-  CheckCircle2,
-  AlertTriangle,
-  Circle,
-  XCircle,
-  FileSearch,
+  Trash,
 } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -32,68 +25,87 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { SeverityBadge } from "@/components/shared/severity-badge";
-import { MOCK_INVESTIGATIONS, type Investigation } from "@/lib/mock-data";
-import { cn } from "@/lib/utils";
-import type { CaseStatus, Severity } from "@/types";
+import { useInvestigations } from "@/hooks/useInvestigations";
+import { LoadingSpinner, ErrorCard, StatusBadge, RiskBadge } from "@/components/shared/feedback";
+import { investigationApi } from "@/lib/api/investigation";
 
 const PAGE_SIZE = 8;
-
-const STATUS_CONFIG: Record<CaseStatus, { label: string; className: string; icon: typeof Circle }> = {
-  open: { label: "Open", className: "bg-blue-500/15 text-blue-400", icon: Circle },
-  in_review: { label: "In Review", className: "bg-amber-500/15 text-amber-400", icon: Clock },
-  escalated: { label: "Escalated", className: "bg-red-500/15 text-red-400", icon: AlertTriangle },
-  resolved: { label: "Resolved", className: "bg-emerald-500/15 text-emerald-400", icon: CheckCircle2 },
-  closed: { label: "Closed", className: "bg-slate-500/15 text-slate-400", icon: XCircle },
-};
-
-const TAB_STATUSES: Record<string, CaseStatus[] | "all"> = {
-  all: "all",
-  open: ["open"],
-  in_review: ["in_review"],
-  escalated: ["escalated"],
-  resolved: ["resolved", "closed"],
-};
-
-function countByStatus(invs: Investigation[], statuses: CaseStatus[] | "all") {
-  if (statuses === "all") return invs.length;
-  return invs.filter((i) => statuses.includes(i.status)).length;
-}
 
 export default function InvestigationsPage() {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState("all");
   const [search, setSearch] = useState("");
-  const [severityFilter, setSeverityFilter] = useState("all");
+  const [priorityFilter, setPriorityFilter] = useState("all");
   const [page, setPage] = useState(1);
 
-  const filtered = useMemo(() => {
-    const statuses = TAB_STATUSES[activeTab];
-    return MOCK_INVESTIGATIONS.filter((inv) => {
-      const matchTab = statuses === "all" || statuses.includes(inv.status);
-      const matchSearch =
-        !search ||
-        inv.id.toLowerCase().includes(search.toLowerCase()) ||
-        inv.title.toLowerCase().includes(search.toLowerCase()) ||
-        inv.assignedTo.toLowerCase().includes(search.toLowerCase());
-      const matchSev = severityFilter === "all" || inv.severity === severityFilter;
-      return matchTab && matchSearch && matchSev;
+  const {
+    investigations,
+    total,
+    loading,
+    error,
+    params,
+    updateFilters,
+    refetch,
+  } = useInvestigations({
+    page,
+    page_size: PAGE_SIZE,
+    status: activeTab !== "all" ? activeTab.toUpperCase() : undefined,
+    priority: priorityFilter !== "all" ? priorityFilter.toUpperCase() : undefined,
+  });
+
+  // Keep filters in sync
+  useEffect(() => {
+    updateFilters({
+      page,
+      status: activeTab !== "all" ? activeTab.toUpperCase() : undefined,
+      priority: priorityFilter !== "all" ? priorityFilter.toUpperCase() : undefined,
     });
-  }, [activeTab, search, severityFilter]);
+  }, [page, activeTab, priorityFilter]);
 
-  const totalPages = Math.ceil(filtered.length / PAGE_SIZE);
-  const paged = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
-
-  function resetPage() {
+  const handleSearchChange = (val: string) => {
+    setSearch(val);
     setPage(1);
-  }
+  };
+
+  const handlePriorityFilterChange = (val: string) => {
+    setPriorityFilter(val);
+    setPage(1);
+  };
+
+  const handleTabChange = (val: string) => {
+    setActiveTab(val);
+    setPage(1);
+  };
+
+  // Local filtering for search (allows live character-by-character filter)
+  const filteredInvestigations = investigations.filter((inv) => {
+    if (!search) return true;
+    return (
+      inv.id.toLowerCase().includes(search.toLowerCase()) ||
+      inv.transaction_id.toLowerCase().includes(search.toLowerCase()) ||
+      inv.status.toLowerCase().includes(search.toLowerCase())
+    );
+  });
+
+  const totalPages = Math.ceil(total / PAGE_SIZE);
+
+  const handleDelete = async (id: string) => {
+    if (confirm("Are you sure you want to soft delete this investigation dossier?")) {
+      try {
+        await investigationApi.delete(id);
+        refetch();
+      } catch (e: any) {
+        alert(e.message || "Failed to delete investigation.");
+      }
+    }
+  };
 
   const tabs = [
-    { value: "all", label: "All" },
-    { value: "open", label: "Open" },
-    { value: "in_review", label: "In Review" },
-    { value: "escalated", label: "Escalated" },
-    { value: "resolved", label: "Resolved" },
+    { value: "all", label: "All Cases" },
+    { value: "pending", label: "Pending" },
+    { value: "running", label: "Running" },
+    { value: "completed", label: "Completed" },
+    { value: "deleted", label: "Deleted" },
   ];
 
   return (
@@ -101,34 +113,27 @@ export default function InvestigationsPage() {
       {/* Header */}
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Investigations</h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            {MOCK_INVESTIGATIONS.length} total cases · {countByStatus(MOCK_INVESTIGATIONS, ["open"])} open ·{" "}
-            {countByStatus(MOCK_INVESTIGATIONS, ["escalated"])} escalated
+          <h1 className="text-2xl font-bold tracking-tight text-slate-800">Investigations</h1>
+          <p className="mt-1 text-sm text-slate-500">
+            {total} total records found in live PostgreSQL registry
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" className="gap-1.5">
-            <Download className="h-3.5 w-3.5" />
-            Export
+          <Button variant="outline" size="sm" className="gap-1.5" onClick={() => refetch()}>
+            Refresh Live
           </Button>
-          <Button size="sm" className="gap-1.5">
-            <Plus className="h-3.5 w-3.5" />
-            New Investigation
+          <Button size="sm" className="gap-1.5" onClick={() => router.push("/dashboard")}>
+            Back to Dashboard
           </Button>
         </div>
       </div>
 
-      {/* Tabs */}
-      <Tabs value={activeTab} onValueChange={(v) => { setActiveTab(v); resetPage(); }}>
+      {/* Tabs & Filters */}
+      <Tabs value={activeTab} onValueChange={handleTabChange}>
         <div className="flex flex-wrap items-center justify-between gap-3">
           <TabsList className="h-auto gap-0.5">
             {tabs.map((t) => (
-              <TabsTrigger
-                key={t.value}
-                value={t.value}
-                count={countByStatus(MOCK_INVESTIGATIONS, TAB_STATUSES[t.value])}
-              >
+              <TabsTrigger key={t.value} value={t.value}>
                 {t.label}
               </TabsTrigger>
             ))}
@@ -139,202 +144,162 @@ export default function InvestigationsPage() {
             <div className="relative w-56">
               <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
               <Input
-                placeholder="Search cases…"
+                placeholder="Search by ID or TX..."
                 value={search}
-                onChange={(e) => { setSearch(e.target.value); resetPage(); }}
-                className="h-8 pl-8 text-sm"
+                onChange={(e) => handleSearchChange(e.target.value)}
+                className="h-8 pl-8 text-sm bg-white"
               />
             </div>
             <select
-              value={severityFilter}
-              onChange={(e) => { setSeverityFilter(e.target.value); resetPage(); }}
-              className="h-8 rounded-md border border-input bg-background px-2 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+              value={priorityFilter}
+              onChange={(e) => handlePriorityFilterChange(e.target.value)}
+              className="h-8 rounded-md border border-input bg-white px-2 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
             >
-              <option value="all">All Severities</option>
-              <option value="critical">Critical</option>
+              <option value="all">All Priorities</option>
               <option value="high">High</option>
               <option value="medium">Medium</option>
               <option value="low">Low</option>
             </select>
             <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
               <Filter className="h-3 w-3" />
-              {filtered.length}
+              {filteredInvestigations.length} on page
             </div>
           </div>
         </div>
 
-        {/* One TabsContent for all tabs to share the table */}
+        {/* Content Box */}
         {tabs.map((t) => (
           <TabsContent key={t.value} value={t.value} className="mt-4">
-            <Card>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead className="w-32">Case ID</TableHead>
-                    <TableHead>Title</TableHead>
-                    <TableHead className="w-24">Severity</TableHead>
-                    <TableHead className="w-28">Status</TableHead>
-                    <TableHead className="w-32">Investigator</TableHead>
-                    <TableHead className="w-24 text-right">Est. Loss</TableHead>
-                    <TableHead className="w-24">Txns</TableHead>
-                    <TableHead className="w-24">Updated</TableHead>
-                    <TableHead className="w-12" />
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {paged.length === 0 ? (
+            <Card className="overflow-hidden bg-white shadow-sm border border-slate-100 rounded-xl">
+              {loading ? (
+                <div className="py-24">
+                  <LoadingSpinner message="Fetching matching investigations..." />
+                </div>
+              ) : error ? (
+                <div className="py-12 px-6">
+                  <ErrorCard message={error} onRetry={refetch} />
+                </div>
+              ) : filteredInvestigations.length === 0 ? (
+                <div className="py-20 text-center">
+                  <p className="text-sm font-semibold text-slate-500 italic">No investigations match the selected filters.</p>
+                </div>
+              ) : (
+                <Table>
+                  <TableHeader className="bg-slate-50">
                     <TableRow>
-                      <TableCell colSpan={9} className="py-16 text-center">
-                        <div className="flex flex-col items-center gap-2">
-                          <FileSearch className="h-8 w-8 text-muted-foreground/40" />
-                          <p className="text-sm text-muted-foreground">No investigations found</p>
-                        </div>
-                      </TableCell>
+                      <TableHead className="w-32 font-bold text-slate-700">Investigation ID</TableHead>
+                      <TableHead className="font-bold text-slate-700">Transaction ID</TableHead>
+                      <TableHead className="w-24 font-bold text-slate-700">Priority</TableHead>
+                      <TableHead className="w-28 font-bold text-slate-700">Status</TableHead>
+                      <TableHead className="w-24 font-bold text-slate-700">Risk Score</TableHead>
+                      <TableHead className="w-24 font-bold text-slate-700">Fraud Prob</TableHead>
+                      <TableHead className="w-32 font-bold text-slate-700">Created At</TableHead>
+                      <TableHead className="w-12" />
                     </TableRow>
-                  ) : (
-                    paged.map((inv) => {
-                      const sc = STATUS_CONFIG[inv.status];
-                      const StatusIcon = sc.icon;
-                      return (
-                        <TableRow key={inv.id}>
-                          <TableCell>
-                            <span
-                              className="cursor-pointer font-mono text-xs text-muted-foreground hover:text-primary hover:underline"
-                              onClick={() => router.push(`/investigations/${inv.id}`)}
-                            >
-                              {inv.id}
-                            </span>
-                          </TableCell>
-                          <TableCell>
-                            <div className="max-w-sm">
-                              <p
-                                className="cursor-pointer text-sm font-medium leading-snug hover:text-primary hover:underline"
+                  </TableHeader>
+                  <TableBody>
+                    {filteredInvestigations.map((inv) => (
+                      <TableRow key={inv.id} className="hover:bg-slate-50/50 transition-colors">
+                        <TableCell>
+                          <span
+                            className="cursor-pointer font-mono text-xs text-indigo-600 font-semibold hover:underline"
+                            onClick={() => router.push(`/investigations/${inv.id}`)}
+                          >
+                            {inv.id.substring(0, 8)}...
+                          </span>
+                        </TableCell>
+                        <TableCell>
+                          <span
+                            className="cursor-pointer font-semibold text-slate-800 hover:text-indigo-600 hover:underline"
+                            onClick={() => router.push(`/investigations/${inv.id}`)}
+                          >
+                            {inv.transaction_id}
+                          </span>
+                        </TableCell>
+                        <TableCell>
+                          <span className={`px-2 py-0.5 rounded text-[10px] font-bold border ${
+                            inv.priority === "HIGH" 
+                              ? "bg-red-50 text-red-700 border-red-200" 
+                              : inv.priority === "MEDIUM"
+                              ? "bg-amber-50 text-amber-700 border-amber-200"
+                              : "bg-emerald-50 text-emerald-700 border-emerald-200"
+                          }`}>
+                            {inv.priority}
+                          </span>
+                        </TableCell>
+                        <TableCell>
+                          <StatusBadge status={inv.status} />
+                        </TableCell>
+                        <TableCell>
+                          <RiskBadge score={inv.risk_score} />
+                        </TableCell>
+                        <TableCell className="font-mono text-xs text-slate-700 font-semibold">
+                          {(inv.fraud_probability * 100).toFixed(1)}%
+                        </TableCell>
+                        <TableCell className="text-xs text-slate-500">
+                          {new Date(inv.created_at).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' })}
+                        </TableCell>
+                        <TableCell>
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" size="icon" className="h-7 w-7 text-slate-500 hover:bg-slate-100">
+                                <MoreHorizontal className="h-4 w-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end" className="w-44">
+                              <DropdownMenuItem
+                                className="gap-2 cursor-pointer"
                                 onClick={() => router.push(`/investigations/${inv.id}`)}
                               >
-                                {inv.title}
-                              </p>
-                              <div className="mt-1 flex flex-wrap gap-1">
-                                {inv.tags.slice(0, 2).map((tag) => (
-                                  <span
-                                    key={tag}
-                                    className="rounded-full bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground"
-                                  >
-                                    {tag}
-                                  </span>
-                                ))}
-                              </div>
-                            </div>
-                          </TableCell>
-                          <TableCell>
-                            <SeverityBadge severity={inv.severity as Severity} />
-                          </TableCell>
-                          <TableCell>
-                            <span
-                              className={cn(
-                                "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium",
-                                sc.className,
-                              )}
-                            >
-                              <StatusIcon className="h-2.5 w-2.5" />
-                              {sc.label}
-                            </span>
-                          </TableCell>
-                          <TableCell>
-                            {inv.assignedTo === "Unassigned" ? (
-                              <span className="text-xs text-muted-foreground italic">Unassigned</span>
-                            ) : (
-                              <div className="flex items-center gap-1.5">
-                                <div className="flex h-5 w-5 items-center justify-center rounded-full bg-primary/20 text-[10px] font-bold text-primary">
-                                  {inv.assigneeInitials}
-                                </div>
-                                <span className="text-xs">{inv.assignedTo.split(" ")[0]}</span>
-                              </div>
-                            )}
-                          </TableCell>
-                          <TableCell className="text-right">
-                            <span className="text-sm font-semibold tabular-nums">
-                              ${(inv.estimatedLoss / 1000).toFixed(0)}k
-                            </span>
-                          </TableCell>
-                          <TableCell>
-                            <span className="text-xs text-muted-foreground">{inv.transactionCount.toLocaleString()}</span>
-                          </TableCell>
-                          <TableCell>
-                            <span className="text-xs text-muted-foreground">{inv.updatedAt}</span>
-                          </TableCell>
-                          <TableCell>
-                            <DropdownMenu>
-                              <DropdownMenuTrigger asChild>
-                                <Button variant="ghost" size="icon" className="h-7 w-7">
-                                  <MoreHorizontal className="h-4 w-4" />
-                                </Button>
-                              </DropdownMenuTrigger>
-                              <DropdownMenuContent align="end" className="w-44">
-                                <DropdownMenuItem
-                                  className="gap-2 cursor-pointer"
-                                  onClick={() => router.push(`/investigations/${inv.id}`)}
-                                >
-                                  <Eye className="h-4 w-4" /> View case
-                                </DropdownMenuItem>
-                                <DropdownMenuItem className="gap-2">
-                                  <UserPlus className="h-4 w-4" /> Assign investigator
-                                </DropdownMenuItem>
-                                <DropdownMenuItem className="gap-2">
-                                  <ArrowUpRight className="h-4 w-4" /> Escalate
-                                </DropdownMenuItem>
-                                <DropdownMenuSeparator />
-                                <DropdownMenuItem className="gap-2">
-                                  <CheckCircle2 className="h-4 w-4" /> Mark resolved
-                                </DropdownMenuItem>
-                              </DropdownMenuContent>
-                            </DropdownMenu>
-                          </TableCell>
-                        </TableRow>
-                      );
-                    })
-                  )}
-                </TableBody>
-              </Table>
+                                <Eye className="h-4 w-4" /> View dossier
+                              </DropdownMenuItem>
+                              <DropdownMenuSeparator />
+                              <DropdownMenuItem 
+                                className="gap-2 cursor-pointer text-rose-600 focus:bg-rose-50/50"
+                                onClick={() => handleDelete(inv.id)}
+                              >
+                                <Trash className="h-4 w-4" /> Soft Delete
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              )}
 
-              {/* Pagination */}
-              <div className="flex items-center justify-between border-t border-border px-4 py-3">
-                <p className="text-xs text-muted-foreground">
-                  {filtered.length === 0
-                    ? "0 results"
-                    : `Showing ${(page - 1) * PAGE_SIZE + 1}–${Math.min(page * PAGE_SIZE, filtered.length)} of ${filtered.length}`}
-                </p>
-                <div className="flex items-center gap-1">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="h-7 w-7 p-0"
-                    disabled={page === 1}
-                    onClick={() => setPage((p) => p - 1)}
-                  >
-                    <ChevronLeft className="h-4 w-4" />
-                  </Button>
-                  {Array.from({ length: Math.max(totalPages, 1) }, (_, i) => i + 1).map((p) => (
+              {/* Pagination controls */}
+              {!loading && !error && total > 0 && (
+                <div className="flex items-center justify-between border-t border-slate-100 px-6 py-4 bg-slate-50/50">
+                  <p className="text-xs text-slate-500 font-medium">
+                    Showing {(page - 1) * PAGE_SIZE + 1}–{Math.min(page * PAGE_SIZE, total)} of {total} results
+                  </p>
+                  <div className="flex items-center gap-1">
                     <Button
-                      key={p}
-                      variant={p === page ? "default" : "ghost"}
+                      variant="outline"
                       size="sm"
-                      className="h-7 w-7 p-0 text-xs"
-                      onClick={() => setPage(p)}
+                      className="h-8 px-3 text-xs"
+                      disabled={page === 1}
+                      onClick={() => setPage((p) => p - 1)}
                     >
-                      {p}
+                      Previous
                     </Button>
-                  ))}
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="h-7 w-7 p-0"
-                    disabled={page === totalPages || totalPages === 0}
-                    onClick={() => setPage((p) => p + 1)}
-                  >
-                    <ChevronRight className="h-4 w-4" />
-                  </Button>
+                    <span className="text-xs font-semibold text-slate-700 px-3">
+                      Page {page} of {Math.max(totalPages, 1)}
+                    </span>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-8 px-3 text-xs"
+                      disabled={page === totalPages || totalPages === 0}
+                      onClick={() => setPage((p) => p + 1)}
+                    >
+                      Next
+                    </Button>
+                  </div>
                 </div>
-              </div>
+              )}
             </Card>
           </TabsContent>
         ))}
