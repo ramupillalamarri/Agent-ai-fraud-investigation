@@ -1,6 +1,6 @@
 import uuid
 from datetime import datetime
-from pydantic import BaseModel, EmailStr, ConfigDict
+from pydantic import BaseModel, ConfigDict, EmailStr, Field
 from app.schemas.role import RoleResponse
 
 
@@ -35,13 +35,13 @@ class UserResponse(UserBase):
     id: uuid.UUID
     created_at: datetime
     updated_at: datetime
-    roles: list[RoleResponse] = []
+    roles: list[RoleResponse] = Field(default_factory=list)
 
 
 class UserAdminCreate(UserCreate):
     """Schema representing admin user creation, including explicit roles specification."""
 
-    role_names: list[str] = ["Fraud Analyst"]
+    role_names: list[str] = Field(default_factory=lambda: ["Fraud Analyst"])
 
 
 class UserAdminUpdate(UserUpdate):
