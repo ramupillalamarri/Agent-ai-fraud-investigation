@@ -1,0 +1,30 @@
+[2026-07-17 16:45:01,913] [INFO] [__main__:train.py:42]: Initialized ModelTrainer
+[2026-07-17 16:45:01,914] [INFO] [__main__:train.py:54]: Splitting dataset into train and validation sets (test_size=0.2)
+[2026-07-17 16:45:02,443] [INFO] [__main__:train.py:63]: Train shape: (64, 20), Val shape: (16, 20)
+[2026-07-17 16:45:02,444] [INFO] [__main__:train.py:112]: Starting model training...
+[2026-07-17 16:45:02,444] [INFO] [__main__:train.py:75]: Initializing XGBClassifier with training config hyper-parameters
+[2026-07-17 16:45:02,655] [INFO] [__main__:train.py:128]: Completed model training execution
+[2026-07-17 16:51:38,046] [INFO] [__main__:train.py:42]: Initialized ModelTrainer
+[2026-07-17 16:51:38,047] [INFO] [__main__:train.py:54]: Splitting dataset into train and validation sets (test_size=0.2)
+[2026-07-17 16:51:38,304] [INFO] [__main__:train.py:63]: Train shape: (64, 20), Val shape: (16, 20)
+[2026-07-17 16:51:38,304] [INFO] [__main__:train.py:112]: Starting model training...
+[2026-07-17 16:51:38,304] [INFO] [__main__:train.py:75]: Initializing XGBClassifier with training config hyper-parameters
+[2026-07-17 16:51:39,260] [INFO] [__main__:train.py:128]: Completed model training execution
+[2026-07-17 16:51:40,054] [INFO] [__main__:train.py:153]: Saving trained model artifacts to registry...
+[2026-07-17 16:51:40,234] [INFO] [__main__:train.py:199]: Successfully serialized and saved all model registry artifacts.
+[2026-07-17 16:55:55,986] [INFO] [__main__:train.py:42]: Initialized ModelTrainer
+[2026-07-17 16:55:55,986] [INFO] [__main__:train.py:54]: Splitting dataset into train and validation sets (test_size=0.2)
+[2026-07-17 16:55:56,606] [INFO] [__main__:train.py:63]: Train shape: (64, 20), Val shape: (16, 20)
+[2026-07-17 16:55:56,610] [INFO] [__main__:train.py:112]: Starting model training...
+[2026-07-17 16:55:56,611] [INFO] [__main__:train.py:75]: Initializing XGBClassifier with training config hyper-parameters
+[2026-07-17 16:55:57,260] [INFO] [__main__:train.py:128]: Completed model training execution
+[2026-07-17 16:55:57,620] [INFO] [__main__:train.py:153]: Saving trained model artifacts to registry...
+[2026-07-17 16:55:57,768] [INFO] [__main__:train.py:199]: Successfully serialized and saved all model registry artifacts.
+[2026-07-17 17:02:23,881] [INFO] [__main__:train.py:42]: Initialized ModelTrainer
+[2026-07-17 17:02:23,882] [INFO] [__main__:train.py:54]: Splitting dataset into train and validation sets (test_size=0.2)
+[2026-07-17 17:02:24,480] [INFO] [__main__:train.py:63]: Train shape: (64, 20), Val shape: (16, 20)
+[2026-07-17 17:02:24,488] [INFO] [__main__:train.py:112]: Starting model training...
+[2026-07-17 17:02:24,488] [INFO] [__main__:train.py:75]: Initializing XGBClassifier with training config hyper-parameters
+[2026-07-17 17:02:27,179] [INFO] [__main__:train.py:128]: Completed model training execution
+[2026-07-17 17:02:27,688] [INFO] [__main__:train.py:153]: Saving trained model artifacts to registry...
+[2026-07-17 17:02:27,897] [INFO] [__main__:train.py:199]: Successfully serialized and saved all model registry artifacts.

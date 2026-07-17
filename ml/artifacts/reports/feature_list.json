@@ -1,0 +1,22 @@
+[
+    "amount",
+    "user_age",
+    "account_balance",
+    "transaction_timestamp_hour",
+    "transaction_timestamp_dayofweek",
+    "transaction_timestamp_is_weekend",
+    "user_transaction_frequency",
+    "merchant_transaction_frequency",
+    "device_transaction_frequency",
+    "payment_method_credit",
+    "payment_method_debit",
+    "merchant_category_electronics",
+    "merchant_category_retail",
+    "location_country_CA",
+    "location_country_US",
+    "amount_bucket_high",
+    "amount_bucket_low",
+    "amount_bucket_medium",
+    "device_type_desktop",
+    "device_type_mobile"
+]

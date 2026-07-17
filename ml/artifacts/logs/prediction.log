@@ -1,0 +1,10 @@
+[2026-07-17 16:56:34,120] [INFO] [__main__]: Initialized PredictionEngine using model version 1.0.0
+[2026-07-17 16:56:34,659] [INFO] [__main__]: Prediction: TX_ID=TX9999, Prob=0.0476, Pred=Legitimate, RiskScore=4, InvRequired=False
+[2026-07-17 16:56:34,789] [INFO] [__main__]: Prediction: TX_ID=TX9999, Prob=0.0476, Pred=Legitimate, RiskScore=4, InvRequired=False
+[2026-07-17 16:56:34,790] [INFO] [__main__]: Prediction: TX_ID=TX8888, Prob=0.0464, Pred=Legitimate, RiskScore=4, InvRequired=False
+[2026-07-17 16:56:34,793] [ERROR] [__main__]: Error during prediction calculation: Input validation failed. Missing expected columns: ['amount', 'user_age', 'account_balance', 'merchant_category', 'payment_method', 'device_type', 'location_country', 'transaction_timestamp', 'merchant_id', 'device_id', 'ip_address']
+[2026-07-17 17:07:56,195] [INFO] [__main__]: Initialized PredictionEngine using model version 1.0.0
+[2026-07-17 17:07:56,263] [INFO] [__main__]: Prediction Context logged: TX_ID=TX9999, RiskScore=4, Prediction=Legitimate, Priority=LOW, InvRequired=False
+[2026-07-17 17:07:56,288] [INFO] [__main__]: Prediction Context logged: TX_ID=TX9999, RiskScore=4, Prediction=Legitimate, Priority=LOW, InvRequired=False
+[2026-07-17 17:07:56,289] [INFO] [__main__]: Prediction Context logged: TX_ID=TX8888, RiskScore=4, Prediction=Legitimate, Priority=LOW, InvRequired=False
+[2026-07-17 17:07:56,290] [ERROR] [__main__]: Error during prediction calculation: Input validation failed. Missing expected columns: ['amount', 'user_age', 'account_balance', 'merchant_category', 'payment_method', 'device_type', 'location_country', 'transaction_timestamp', 'merchant_id', 'device_id', 'ip_address']

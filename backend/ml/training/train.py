@@ -2,14 +2,14 @@
 
 import os
 import pandas as pd
-from typing import Tuple, Optional
+from typing import Tuple, Optional, Dict, Any
 # pyrefly: ignore [missing-import]
 from xgboost import XGBClassifier   
 from sklearn.model_selection import train_test_split
 from ml.config import MLProjectConfig
 from ml.preprocessing.pipeline import PreprocessingPipeline
 from ml.utils.logger import get_ml_logger
-from ml.utils.helpers import save_serialized_artifact, save_json_metadata
+from ml.utils.helpers import save_serialized_artifact, save_json_metadata, ensure_directory_exists
 
 logger = get_ml_logger(__name__)
 
@@ -30,6 +30,15 @@ class ModelTrainer:
         self.config = config or MLProjectConfig()
         self.model: Optional[XGBClassifier] = None
         self.preprocessing_pipeline = preprocessing_pipeline
+        
+        # Configure file logging handler for training logs
+        log_file = os.path.join(self.config.paths.logs_dir, "training.log")
+        ensure_directory_exists(self.config.paths.logs_dir)
+        import logging
+        file_handler = logging.FileHandler(log_file)
+        file_handler.setFormatter(logging.Formatter("[%(asctime)s] [%(levelname)s] [%(name)s:%(filename)s:%(lineno)d]: %(message)s"))
+        logger.addHandler(file_handler)
+        
         logger.info("Initialized ModelTrainer")
 
     def split_data(self, X: pd.DataFrame, y: pd.Series) -> Tuple[pd.DataFrame, pd.DataFrame, pd.Series, pd.Series]:
@@ -104,14 +113,19 @@ class ModelTrainer:
         self.model = self.initialize_estimator()
         
         try:
-            # TODO: Implement the actual xgboost fit logic here when real data is integrated.
-            # self.model.fit(
-            #     X_train, y_train,
-            #     eval_set=[(X_val, y_val)],
-            #     verbose=False
-            # )
+            if X_val is not None and y_val is not None:
+                self.model.fit(
+                    X_train, y_train,
+                    eval_set=[(X_val, y_val)],
+                    verbose=False
+                )
+            else:
+                self.model.fit(
+                    X_train, y_train,
+                    verbose=False
+                )
             
-            logger.info("Completed model training placeholder execution")
+            logger.info("Completed model training execution")
             return self.model
         except Exception as e:
             logger.error("Error encountered during training: %s", str(e))
@@ -119,10 +133,12 @@ class ModelTrainer:
 
     def save_model_artifacts(
         self, 
-        model_file_name: str = "model.joblib", 
+        model_file_name: str = "fraud_model.joblib", 
         pipeline_file_name: str = "pipeline.joblib", 
         metadata_file_name: str = "model_metadata.json",
-        metrics_summary: Optional[dict] = None
+        metrics_summary: Optional[dict] = None,
+        dataset_name: str = "transactions.csv",
+        dataset_size: int = 0
     ) -> None:
         """Saves the trained model, preprocessing pipeline, and detailed metadata to the versioned registry.
         
@@ -131,6 +147,8 @@ class ModelTrainer:
             pipeline_file_name: Filename for pipeline object.
             metadata_file_name: Filename for the registry metadata file.
             metrics_summary: Optional dictionary containing evaluation metric values.
+            dataset_name: Name of the raw dataset used.
+            dataset_size: Count of rows in the dataset.
         """
         logger.info("Saving trained model artifacts to registry...")
         
@@ -156,18 +174,25 @@ class ModelTrainer:
                 self.preprocessing_pipeline.save(pipeline_path)
                 
                 # Assemble detailed model metadata as requested
+                feature_names = self.preprocessing_pipeline.final_feature_columns
                 metadata = {
                     "model_version": self.config.model.model_version,
-                    "algorithm": self.config.model.algorithm,
-                    "training_timestamp": timestamp_str,
-                    "metrics": metrics_summary or {"aucpr": 0.0, "roc_auc": 0.0},
-                    "feature_names": self.preprocessing_pipeline.feature_columns,
                     "preprocessing_version": self.config.model.preprocessing_version,
+                    "training_timestamp": timestamp_str,
+                    "dataset_name": dataset_name,
+                    "dataset_size": dataset_size,
+                    "feature_count": len(feature_names),
+                    "feature_names": feature_names,
+                    "algorithm": self.config.model.algorithm,
                     "hyperparameters": {
                         "n_estimators": self.config.training.n_estimators,
                         "max_depth": self.config.training.max_depth,
                         "learning_rate": self.config.training.learning_rate,
-                    }
+                        "subsample": self.config.training.subsample,
+                        "colsample_bytree": self.config.training.colsample_bytree,
+                        "scale_pos_weight": self.config.training.scale_pos_weight
+                    },
+                    "metrics": metrics_summary or {"aucpr": 0.0, "roc_auc": 0.0}
                 }
                 save_json_metadata(metadata, metadata_path)
                 
@@ -177,6 +202,72 @@ class ModelTrainer:
             raise
 
 if __name__ == "__main__":
-    # Test initialization
-    trainer = ModelTrainer()
-
+    import sys
+    
+    print("Loading configuration...")
+    config = MLProjectConfig()
+    
+    print("Loading processed dataset...")
+    processed_dir = config.paths.processed_data_dir
+    X_train_path = os.path.join(processed_dir, "X_train.csv")
+    X_test_path = os.path.join(processed_dir, "X_test.csv")
+    y_train_path = os.path.join(processed_dir, "y_train.csv")
+    y_test_path = os.path.join(processed_dir, "y_test.csv")
+    
+    # Run preprocessing if processed splits are not present
+    if not (os.path.exists(X_train_path) and os.path.exists(X_test_path)):
+        from ml.preprocessing.pipeline import FraudPreprocessingPipeline
+        pipeline = FraudPreprocessingPipeline(config)
+        X_train, X_test, y_train, y_test = pipeline.run("transactions.csv")
+        pipeline.save_processed_splits(X_train, X_test, y_train, y_test)
+        pipeline.save_preprocessors()
+    else:
+        X_train = pd.read_csv(X_train_path)
+        X_test = pd.read_csv(X_test_path)
+        y_train = pd.read_csv(y_train_path).squeeze("columns")
+        y_test = pd.read_csv(y_test_path).squeeze("columns")
+        
+    pipeline_obj_path = os.path.join(config.paths.preprocessor_save_dir, "pipeline.joblib")
+    if os.path.exists(pipeline_obj_path):
+        from ml.preprocessing.pipeline import FraudPreprocessingPipeline
+        pipeline_obj = FraudPreprocessingPipeline.load(pipeline_obj_path)
+    else:
+        from ml.preprocessing.pipeline import FraudPreprocessingPipeline
+        pipeline_obj = FraudPreprocessingPipeline(config)
+        pipeline_obj.final_feature_columns = list(X_train.columns)
+        
+    trainer = ModelTrainer(config=config, preprocessing_pipeline=pipeline_obj)
+    
+    print("Training XGBoost model...")
+    X_train_split, X_val_split, y_train_split, y_val_split = trainer.split_data(X_train, y_train)
+    trainer.train(X_train_split, y_train_split, X_val_split, y_val_split)
+    
+    print("Evaluating model...")
+    from ml.training.evaluate import ModelEvaluator
+    evaluator = ModelEvaluator()
+    metrics_summary = evaluator.evaluate(trainer.model, X_test, y_test)
+    class_report = evaluator.get_classification_report(trainer.model, X_test, y_test)
+    
+    print("Saving trained model...")
+    print("Saving metadata...")
+    dataset_size = len(X_train) + len(X_test)
+    
+    trainer.save_model_artifacts(
+        metrics_summary=metrics_summary,
+        dataset_name="transactions.csv",
+        dataset_size=int(dataset_size)
+    )
+    
+    print("Saving reports...")
+    ensure_directory_exists(config.paths.reports_dir)
+    ensure_directory_exists(config.paths.metrics_dir)
+    save_json_metadata(metrics_summary, os.path.join(config.paths.metrics_dir, "metrics.json"))
+    save_json_metadata(class_report, os.path.join(config.paths.reports_dir, "classification_report.json"))
+    
+    import json
+    feature_names = list(X_train.columns)
+    feature_list_path = os.path.join(config.paths.reports_dir, "feature_list.json")
+    with open(feature_list_path, "w") as f:
+        json.dump(feature_names, f, indent=4)
+        
+    print("Training completed successfully.")

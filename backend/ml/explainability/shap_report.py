@@ -2,6 +2,7 @@
 
 import pandas as pd
 from typing import Dict, Any, Optional
+# pyrefly: ignore [missing-import]
 from xgboost import XGBClassifier
 from ml.config import MLProjectConfig
 from ml.utils.logger import get_ml_logger

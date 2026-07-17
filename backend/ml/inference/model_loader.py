@@ -1,8 +1,10 @@
 """Model loading interface for inference services."""
 
 import os
+import json
 import threading
 from typing import Optional
+# pyrefly: ignore [missing-import]
 from xgboost import XGBClassifier
 from ml.config import MLProjectConfig
 from ml.preprocessing.pipeline import PreprocessingPipeline
@@ -37,7 +39,7 @@ class ModelLoader:
             self._initialized = True
             logger.info("Initialized ModelLoader Singleton")
 
-    def load_model(self, filename: str = "model.joblib", version: str = "latest") -> XGBClassifier:
+    def load_model(self, filename: str = "fraud_model.joblib", version: str = "latest") -> XGBClassifier:
         """Retrieves or loads the compiled XGBClassifier model from versioned registry path.
         
         Args:
@@ -59,13 +61,20 @@ class ModelLoader:
             logger.info("Loading model from disk: %s", model_path)
             
             try:
-                # TODO: Integrate actual deserialization post-training execution
-                # self._model = load_serialized_artifact(model_path)
-                self._model = XGBClassifier()
+                self._model = load_serialized_artifact(model_path)
+                
+                # Load and validate metadata if present
+                metadata_path = os.path.join(target_dir, "model_metadata.json")
+                if os.path.exists(metadata_path):
+                    with open(metadata_path, "r") as f:
+                        meta = json.load(f)
+                    logger.info("Validated Model Version: %s | Algorithm: %s", 
+                                meta.get("model_version"), meta.get("algorithm"))
+                    
                 logger.info("Successfully loaded and cached target model.")
                 return self._model
             except Exception as e:
-                logger.error("Failed to load model: %s", str(e))
+                logger.error("Failed to load model from %s: %s", model_path, str(e))
                 raise
 
     def load_preprocessing_pipeline(self, filename: str = "pipeline.joblib", version: str = "latest") -> PreprocessingPipeline:
@@ -90,13 +99,20 @@ class ModelLoader:
             logger.info("Loading preprocessing pipeline from disk: %s", pipeline_path)
             
             try:
-                # TODO: Integrate actual deserialization post-training execution
-                # self._pipeline = PreprocessingPipeline.load(pipeline_path)
-                self._pipeline = PreprocessingPipeline(self.config.preprocessing)
+                self._pipeline = PreprocessingPipeline.load(pipeline_path)
+                
+                # Validate preprocessing version
+                metadata_path = os.path.join(target_dir, "model_metadata.json")
+                if os.path.exists(metadata_path):
+                    with open(metadata_path, "r") as f:
+                        meta = json.load(f)
+                    logger.info("Validated Preprocessing Pipeline Version: %s", 
+                                meta.get("preprocessing_version"))
+                    
                 logger.info("Successfully loaded and cached preprocessing pipeline.")
                 return self._pipeline
             except Exception as e:
-                logger.error("Failed to load preprocessing pipeline: %s", str(e))
+                logger.error("Failed to load preprocessing pipeline from %s: %s", pipeline_path, str(e))
                 raise
 
     def clear_cache(self) -> None:

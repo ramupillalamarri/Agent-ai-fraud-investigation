@@ -1,0 +1,53 @@
+{
+    "model_version": "1.0.0",
+    "preprocessing_version": "1.0.0",
+    "training_timestamp": "2026-07-17T11:32:27.688298+00:00",
+    "dataset_name": "transactions.csv",
+    "dataset_size": 100,
+    "feature_count": 20,
+    "feature_names": [
+        "amount",
+        "user_age",
+        "account_balance",
+        "transaction_timestamp_hour",
+        "transaction_timestamp_dayofweek",
+        "transaction_timestamp_is_weekend",
+        "user_transaction_frequency",
+        "merchant_transaction_frequency",
+        "device_transaction_frequency",
+        "payment_method_credit",
+        "payment_method_debit",
+        "merchant_category_electronics",
+        "merchant_category_retail",
+        "location_country_CA",
+        "location_country_US",
+        "amount_bucket_high",
+        "amount_bucket_low",
+        "amount_bucket_medium",
+        "device_type_desktop",
+        "device_type_mobile"
+    ],
+    "algorithm": "XGBClassifier",
+    "hyperparameters": {
+        "n_estimators": 500,
+        "max_depth": 6,
+        "learning_rate": 0.05,
+        "subsample": 0.8,
+        "colsample_bytree": 0.8,
+        "scale_pos_weight": 1.0
+    },
+    "metrics": {
+        "accuracy": 0.95,
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1_score": 0.0,
+        "roc_auc": 0.9473684210526316,
+        "pr_auc": 0.3333333333333333,
+        "confusion_matrix": {
+            "tn": 19,
+            "fp": 0,
+            "fn": 1,
+            "tp": 0
+        }
+    }
+}

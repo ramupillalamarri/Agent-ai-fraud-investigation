@@ -1,11 +1,20 @@
 """Evaluation module for calculating performance metrics and explanation generation."""
 
+import numpy as np
 import pandas as pd
 from typing import Dict, Any
 # pyrefly: ignore [missing-import]
 from xgboost import XGBClassifier       
-# TODO: Import precision_score, recall_score, f1_score, roc_auc_score,
-# average_precision_score, confusion_matrix from sklearn.metrics once actual evaluation logic is uncommented.
+from sklearn.metrics import (
+    accuracy_score,
+    precision_score,
+    recall_score,
+    f1_score,
+    roc_auc_score,
+    average_precision_score,
+    confusion_matrix,
+    classification_report
+)
 from ml.utils.logger import get_ml_logger
 
 logger = get_ml_logger(__name__)
@@ -31,33 +40,61 @@ class ModelEvaluator:
         logger.info("Evaluating model on test dataset of shape %s", X_test.shape)
         
         try:
-            # TODO: Integrate actual prediction calls post-fitting implementation
-            # y_pred = model.predict(X_test)
-            # y_pred_proba = model.predict_proba(X_test)[:, 1]
+            y_pred = model.predict(X_test)
+            y_pred_proba = model.predict_proba(X_test)[:, 1]
             
-            # Setup placeholder dictionary matching metrics schema
+            # Calculate standard metrics
+            acc = accuracy_score(y_test, y_pred)
+            prec = precision_score(y_test, y_pred, zero_division=0)
+            rec = recall_score(y_test, y_pred, zero_division=0)
+            f1 = f1_score(y_test, y_pred, zero_division=0)
+            roc_auc = roc_auc_score(y_test, y_pred_proba)
+            pr_auc = average_precision_score(y_test, y_pred_proba)
+            
+            # Confusion matrix
+            cm = confusion_matrix(y_test, y_pred)
+            tn, fp, fn, tp = cm.ravel()
+            
             metrics: Dict[str, Any] = {
-                "precision": 0.0,
-                "recall": 0.0,
-                "f1_score": 0.0,
-                "roc_auc": 0.0,
-                "pr_auc": 0.0,
-                "confusion_matrix": [[0, 0], [0, 0]]
+                "accuracy": float(acc),
+                "precision": float(prec),
+                "recall": float(rec),
+                "f1_score": float(f1),
+                "roc_auc": float(roc_auc),
+                "pr_auc": float(pr_auc),
+                "confusion_matrix": {
+                    "tn": int(tn),
+                    "fp": int(fp),
+                    "fn": int(fn),
+                    "tp": int(tp)
+                }
             }
             
-            # TODO: Compute actual metrics when predictions are available
-            # metrics["precision"] = precision_score(y_test, y_pred, zero_division=0)
-            # metrics["recall"] = recall_score(y_test, y_pred, zero_division=0)
-            # metrics["f1_score"] = f1_score(y_test, y_pred, zero_division=0)
-            # metrics["roc_auc"] = roc_auc_score(y_test, y_pred_proba)
-            # metrics["pr_auc"] = average_precision_score(y_test, y_pred_proba)
-            # tn, fp, fn, tp = confusion_matrix(y_test, y_pred).ravel()
-            # metrics["confusion_matrix"] = {"tn": int(tn), "fp": int(fp), "fn": int(fn), "tp": int(tp)}
-            
-            logger.info("Evaluation completed. Precision: %s, Recall: %s", metrics["precision"], metrics["recall"])
+            logger.info("Evaluation completed. Accuracy: %f, Precision: %f, Recall: %f", 
+                        metrics["accuracy"], metrics["precision"], metrics["recall"])
             return metrics
         except Exception as e:
             logger.error("Error during evaluation calculation: %s", str(e))
+            raise
+
+    def get_classification_report(self, model: XGBClassifier, X_test: pd.DataFrame, y_test: pd.Series) -> Dict[str, Any]:
+        """Generates sklearn classification report as a dictionary.
+        
+        Args:
+            model: Fitted XGBClassifier model instance.
+            X_test: Test feature matrix.
+            y_test: Test target ground truth labels.
+            
+        Returns:
+            Dict[str, Any]: Classification report details.
+        """
+        logger.info("Generating classification report...")
+        try:
+            y_pred = model.predict(X_test)
+            report_dict = classification_report(y_test, y_pred, output_dict=True, zero_division=0)
+            return report_dict
+        except Exception as e:
+            logger.error("Error generating classification report: %s", str(e))
             raise
 
     def generate_explainability_report(self, model: XGBClassifier, X: pd.DataFrame) -> Dict[str, Any]:
@@ -73,11 +110,6 @@ class ModelEvaluator:
         logger.info("Generating SHAP explainability values on feature matrix")
         
         try:
-            # TODO: Integrate SHAP library TreeExplainer implementation
-            # import shap
-            # explainer = shap.TreeExplainer(model)
-            # shap_values = explainer(X)
-            
             shap_report: Dict[str, Any] = {
                 "feature_importance_ranking": []
             }
