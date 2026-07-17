@@ -3,7 +3,7 @@ import time
 import logging
 import functools
 from datetime import datetime, timezone
-from typing import List, Optional
+from typing import List, Optional, Any
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 
 from app.api.deps import ActiveSession, has_permission, get_current_active_user
@@ -15,7 +15,11 @@ from app.schemas.investigation import (
     InvestigationResponse,
     InvestigationListResponse,
     TimelineResponse,
-    InvestigationReportResponse
+    InvestigationReportResponse,
+    EvidenceResponse,
+    RecommendationResponse,
+    AgentResultResponse,
+    UpdateInvestigationRequest
 )
 
 # Import default concrete investigators to register them in orchestrator
@@ -358,5 +362,123 @@ async def delete_investigation(
     except InvestigationServiceException as err:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=str(err)
+        )
+
+@router.get(
+    "/{investigation_id}/evidence",
+    response_model=EvidenceResponse,
+    summary="Get case evidence items",
+    dependencies=[has_permission("investigation:read")]
+)
+async def get_evidence(
+    investigation_id: uuid.UUID,
+    service: InvestigationService = Depends(get_investigation_service)
+) -> dict:
+    """Fetch complete list of audit evidence items collected for a single investigation."""
+    try:
+        inv = await service.load_report(str(investigation_id))
+        if not inv:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Investigation not found for ID: {investigation_id}"
+            )
+        return {
+            "investigation_id": inv.id,
+            "evidence": inv.evidence
+        }
+    except InvestigationServiceException as err:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=str(err)
+        )
+
+@router.get(
+    "/{investigation_id}/recommendations",
+    response_model=RecommendationResponse,
+    summary="Get case recommendations",
+    dependencies=[has_permission("investigation:read")]
+)
+async def get_recommendations(
+    investigation_id: uuid.UUID,
+    service: InvestigationService = Depends(get_investigation_service)
+) -> dict:
+    """Fetch complete list of mitigation recommendations mapped for a single investigation."""
+    try:
+        inv = await service.load_report(str(investigation_id))
+        if not inv:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Investigation not found for ID: {investigation_id}"
+            )
+        return {
+            "investigation_id": inv.id,
+            "recommendations": inv.recommendations
+        }
+    except InvestigationServiceException as err:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=str(err)
+        )
+
+@router.get(
+    "/{investigation_id}/agent-results",
+    response_model=AgentResultResponse,
+    summary="Get individual agent execution results",
+    dependencies=[has_permission("investigation:read")]
+)
+async def get_agent_results(
+    investigation_id: uuid.UUID,
+    service: InvestigationService = Depends(get_investigation_service)
+) -> dict:
+    """Fetch execution parameters and outputs of all agents executed for a single investigation."""
+    try:
+        inv = await service.load_report(str(investigation_id))
+        if not inv:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Investigation not found for ID: {investigation_id}"
+            )
+        return {
+            "investigation_id": inv.id,
+            "agent_results": inv.agent_results
+        }
+    except InvestigationServiceException as err:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=str(err)
+        )
+
+@router.patch(
+    "/{investigation_id}",
+    response_model=InvestigationResponse,
+    summary="Update investigation attributes",
+    dependencies=[has_permission("investigation:update")]
+)
+async def update_investigation(
+    investigation_id: uuid.UUID,
+    payload: UpdateInvestigationRequest,
+    service: InvestigationService = Depends(get_investigation_service)
+) -> Any:
+    """Partially updates investigation priority, status, or assignee attributes."""
+    try:
+        inv = await service.load_report(str(investigation_id))
+        if not inv:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Investigation not found for ID: {investigation_id}"
+            )
+            
+        if payload.status is not None:
+            await service.change_status(str(investigation_id), payload.status)
+        if payload.priority is not None:
+            await service.change_priority(str(investigation_id), payload.priority)
+        if payload.assigned_to is not None:
+            await service.assign_investigator(str(investigation_id), payload.assigned_to)
+            
+        return await service.load_report(str(investigation_id))
+    except InvestigationServiceException as err:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
             detail=str(err)
         )

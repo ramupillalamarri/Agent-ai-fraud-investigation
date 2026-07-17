@@ -33,6 +33,7 @@ class AgentResultSchema(BaseModel):
     status: str
     confidence_score: float
     execution_time_ms: int
+    summary: Optional[str] = None
     additional_metadata: Dict[str, Any] = Field(default_factory=dict)
 
 class EvidenceSchema(BaseModel):
@@ -44,6 +45,7 @@ class EvidenceSchema(BaseModel):
     type: str
     severity: str
     confidence: float
+    title: Optional[str] = None
     description: str
     source: str
     additional_metadata: Dict[str, Any] = Field(default_factory=dict)
@@ -53,6 +55,8 @@ class RecommendationSchema(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     id: uuid.UUID
+    title: Optional[str] = None
+    description: str
     recommendation: str
     priority: str
     generated_by: str
@@ -64,8 +68,13 @@ class TimelineSchema(BaseModel):
 
     id: uuid.UUID
     event_type: str
+    title: Optional[str] = None
     event_description: str
     agent_name: Optional[str] = None
+    status: Optional[str] = None
+    started_at: Optional[datetime] = None
+    completed_at: Optional[datetime] = None
+    duration_ms: Optional[int] = None
     timestamp: datetime
     additional_metadata: Dict[str, Any] = Field(default_factory=dict)
 
@@ -75,14 +84,18 @@ class InvestigationResponse(BaseModel):
 
     id: uuid.UUID
     transaction_id: str
+    case_number: str
     status: str
     priority: str
     fraud_probability: float
     risk_score: int
     overall_confidence: float
+    prediction: Optional[str] = None
+    summary: Optional[str] = None
     started_at: datetime
     completed_at: Optional[datetime] = None
     created_by: Optional[uuid.UUID] = None
+    assigned_to: Optional[uuid.UUID] = None
     created_at: datetime
     updated_at: datetime
     additional_metadata: Dict[str, Any] = Field(default_factory=dict)
@@ -101,6 +114,27 @@ class TimelineResponse(BaseModel):
     """Schema representing a timeline of investigation audit logs."""
     investigation_id: uuid.UUID
     timeline: List[TimelineSchema]
+
+class EvidenceResponse(BaseModel):
+    """Schema representing evidence items for a case."""
+    investigation_id: uuid.UUID
+    evidence: List[EvidenceSchema]
+
+class RecommendationResponse(BaseModel):
+    """Schema representing recommendations for a case."""
+    investigation_id: uuid.UUID
+    recommendations: List[RecommendationSchema]
+
+class AgentResultResponse(BaseModel):
+    """Schema representing agent result items for a case."""
+    investigation_id: uuid.UUID
+    agent_results: List[AgentResultSchema]
+
+class UpdateInvestigationRequest(BaseModel):
+    """Schema for updating status, priority, or assignment on an investigation."""
+    status: Optional[str] = Field(None, description="Updated status of the investigation.")
+    priority: Optional[str] = Field(None, description="Updated priority level.")
+    assigned_to: Optional[uuid.UUID] = Field(None, description="Investigator UUID assigned to this case.")
 
 class InvestigationReportResponse(BaseModel):
     """Schema representing a parsed and aggregated summary Report output."""

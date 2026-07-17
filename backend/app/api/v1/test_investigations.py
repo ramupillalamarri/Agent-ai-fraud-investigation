@@ -225,6 +225,60 @@ def test_api_endpoints():
     print("  ✓ Success: Investigation report successfully loaded.")
 
     # ----------------------------------------------------
+    # TEST 9A: Get Evidence (200 OK)
+    # ----------------------------------------------------
+    print(f"\n9A. Testing GET /investigations/{investigation_id}/evidence...")
+    res = client.get(f"/api/v1/investigations/{investigation_id}/evidence")
+    print(f"Status Code: {res.status_code}")
+    assert res.status_code == 200
+    ev_data = res.json()
+    assert ev_data["investigation_id"] == investigation_id
+    print("  ✓ Success: Evidence list retrieved successfully.")
+
+    # ----------------------------------------------------
+    # TEST 9B: Get Recommendations (200 OK)
+    # ----------------------------------------------------
+    print(f"\n9B. Testing GET /investigations/{investigation_id}/recommendations...")
+    res = client.get(f"/api/v1/investigations/{investigation_id}/recommendations")
+    print(f"Status Code: {res.status_code}")
+    assert res.status_code == 200
+    rec_data = res.json()
+    assert rec_data["investigation_id"] == investigation_id
+    print("  ✓ Success: Recommendations list retrieved successfully.")
+
+    # ----------------------------------------------------
+    # TEST 9C: Get Agent Results (200 OK)
+    # ----------------------------------------------------
+    print(f"\n9C. Testing GET /investigations/{investigation_id}/agent-results...")
+    res = client.get(f"/api/v1/investigations/{investigation_id}/agent-results")
+    print(f"Status Code: {res.status_code}")
+    assert res.status_code == 200
+    ar_data = res.json()
+    assert ar_data["investigation_id"] == investigation_id
+    print("  ✓ Success: Agent results list retrieved successfully.")
+
+    # ----------------------------------------------------
+    # TEST 9D: Update Investigation dossier (PATCH)
+    # ----------------------------------------------------
+    print(f"\n9D. Testing PATCH /investigations/{investigation_id} (Update attributes)...")
+    assignee_uuid = str(uuid.uuid4())
+    patch_payload = {
+        "status": "CLOSED",
+        "priority": "CRITICAL",
+        "assigned_to": assignee_uuid
+    }
+    # Temporarily override role permissions to allow write/update
+    admin_role.permissions.append(Permission(name="investigation:update"))
+    res = client.patch(f"/api/v1/investigations/{investigation_id}", json=patch_payload)
+    print(f"Status Code: {res.status_code}")
+    assert res.status_code == 200
+    patched_data = res.json()
+    assert patched_data["status"] == "CLOSED"
+    assert patched_data["priority"] == "CRITICAL"
+    assert patched_data["assigned_to"] == assignee_uuid
+    print("  ✓ Success: Dossier attributes updated successfully.")
+
+    # ----------------------------------------------------
     # TEST 10: Soft Delete (200 OK)
     # ----------------------------------------------------
     print(f"\n10. Testing DELETE /investigations/{investigation_id} (Soft Delete)...")
