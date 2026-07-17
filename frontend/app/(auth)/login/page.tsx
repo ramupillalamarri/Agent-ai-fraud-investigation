@@ -27,48 +27,30 @@ export default function LoginPage() {
     setLoading(true);
     setError("");
 
-    try {
-      // Connect to the backend API
-      const res = await fetch("http://localhost:8000/api/v1/auth/login", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ email, password }),
-      });
+    // Mock API — simulate network delay
+    await new Promise((r) => setTimeout(r, 1200));
 
-      if (!res.ok) {
-        const errorData = await res.json();
-        const detail = errorData.detail || "Authentication failed.";
-        setError(typeof detail === "string" ? detail : "Incorrect email or password.");
-        setLoading(false);
-        return;
-      }
-
-      const tokenData = await res.json();
-      
-      // Save tokens securely
-      localStorage.setItem("access_token", tokenData.access_token);
-      localStorage.setItem("refresh_token", tokenData.refresh_token);
-      localStorage.setItem("user_email", email);
-
-      // Redirect to the dashboard
-      router.push("/dashboard");
-    } catch (err) {
-      console.error("Authentication API connection failed:", err);
-      
-      // Resilient local sandbox fallback for development offline support
-      if (email === "admin@fraudinvestigation.com" && password === "Admin.123") {
-        localStorage.setItem("access_token", "mock_dev_admin_token");
-        localStorage.setItem("refresh_token", "mock_dev_admin_refresh");
-        localStorage.setItem("user_email", email);
-        router.push("/dashboard");
-      } else {
-        setError("Network error: Could not reach the authentication server.");
-      }
-    } finally {
+    if (password.length < 6) {
+      setError("Incorrect email or password.");
       setLoading(false);
+      return;
     }
+
+    localStorage.setItem("access_token", "mock_access_token");
+    localStorage.setItem("refresh_token", "mock_refresh_token");
+    localStorage.setItem("user_email", email);
+    localStorage.setItem(
+      "user_profile",
+      JSON.stringify({
+        name: email.split("@")[0].replace(/[._]/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()),
+        email,
+        role: "Senior Fraud Analyst",
+        avatar: "",
+      })
+    );
+
+    router.push("/dashboard");
+    setLoading(false);
   }
 
   return (
@@ -195,7 +177,7 @@ export default function LoginPage() {
                   Password
                 </Label>
                 <Link
-                  href="#"
+                  href="/forgot-password"
                   className="text-xs text-muted-foreground transition-colors hover:text-primary"
                 >
                   Forgot password?
@@ -251,9 +233,9 @@ export default function LoginPage() {
 
           {/* Footer */}
           <p className="text-center text-xs text-muted-foreground">
-            Need access?{" "}
-            <Link href="#" className="text-primary underline-offset-4 hover:underline">
-              Contact your administrator
+            Don&apos;t have an account?{" "}
+            <Link href="/register" className="text-primary underline-offset-4 hover:underline">
+              Create one
             </Link>
           </p>
         </div>
