@@ -25,7 +25,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Separator } from "@/components/ui/separator";
 import { SeverityBadge } from "@/components/shared/severity-badge";
 import { MOCK_INVESTIGATIONS, MOCK_TRANSACTIONS, type Investigation } from "@/lib/mock-data";
-import { Severity, CaseStatus } from "@/types";
+import type { Severity, CaseStatus } from "@/types";
 
 interface PageProps {
   params: Promise<{ id: string }>;

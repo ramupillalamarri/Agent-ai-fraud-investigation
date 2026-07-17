@@ -160,7 +160,6 @@ export function TopNav({ onToggleSidebar }: TopNavProps) {
               </span>
             </div>
             <Avatar className="h-7 w-7">
-              <AvatarImage src={undefined} alt={userName} />
               <AvatarFallback className="bg-primary/20 text-xs font-semibold text-primary">
                 {initials}
               </AvatarFallback>
@@ -176,7 +175,7 @@ export function TopNav({ onToggleSidebar }: TopNavProps) {
           </DropdownMenuLabel>
           <DropdownMenuSeparator />
           <DropdownMenuItem asChild>
-            <Link href="/settings" className="flex cursor-pointer items-center">
+            <Link href="/dashboard/profile" className="flex cursor-pointer items-center">
               <User className="mr-2 h-4 w-4" />
               Profile
               <DropdownMenuShortcut>⌘P</DropdownMenuShortcut>

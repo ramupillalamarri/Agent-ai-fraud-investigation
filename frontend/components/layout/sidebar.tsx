@@ -20,7 +20,6 @@ import {
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import type { NavGroup } from "@/types";
 
@@ -86,7 +85,7 @@ export function Sidebar({ collapsed, onCollapse }: SidebarProps) {
         </div>
 
         {/* Navigation */}
-        <ScrollArea className="flex-1 px-2 py-3">
+        <div className="flex-1 overflow-y-auto px-2 py-3">
           <nav className="space-y-5">
             {navigation.map((group, gi) => (
               <div key={gi} className="space-y-0.5">
@@ -152,7 +151,7 @@ export function Sidebar({ collapsed, onCollapse }: SidebarProps) {
               </div>
             ))}
           </nav>
-        </ScrollArea>
+        </div>
 
         {/* Collapse toggle */}
         <div className="shrink-0 border-t border-sidebar-border p-2">

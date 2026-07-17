@@ -196,7 +196,6 @@ export default function UsersPage() {
               return (
                 <div key={user.id} className="flex items-center gap-4 px-6 py-4 hover:bg-muted/20 transition-colors">
                   <Avatar className="h-10 w-10">
-                    <AvatarImage src={undefined} alt={user.name} />
                     <AvatarFallback className="bg-primary/15 text-xs font-bold text-primary">
                       {user.initials}
                     </AvatarFallback>
