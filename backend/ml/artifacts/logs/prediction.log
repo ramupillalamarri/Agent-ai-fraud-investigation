@@ -10,3 +10,13 @@
 [2026-07-17 17:07:56,290] [ERROR] [__main__]: Error during prediction calculation: Input validation failed. Missing expected columns: ['amount', 'user_age', 'account_balance', 'merchant_category', 'payment_method', 'device_type', 'location_country', 'transaction_timestamp', 'merchant_id', 'device_id', 'ip_address']
 [2026-07-17 18:19:35,971] [INFO] [ml.inference.predict]: Initialized PredictionEngine using model version 1.0.0
 [2026-07-17 18:19:42,567] [ERROR] [ml.inference.predict]: Error during prediction calculation: Input validation failed. Missing expected columns: ['amount', 'user_age', 'account_balance', 'merchant_category', 'payment_method', 'device_type', 'location_country', 'transaction_timestamp', 'transaction_id', 'user_id', 'merchant_id', 'device_id', 'ip_address']
+[2026-07-18 03:59:34,906] [INFO] [ml.inference.predict]: Initialized PredictionEngine using model version 1.0.0
+[2026-07-18 03:59:34,970] [ERROR] [ml.inference.predict]: Error during prediction calculation: Input validation failed. Missing expected columns: ['user_age', 'account_balance', 'device_type', 'location_country', 'transaction_timestamp', 'user_id']
+[2026-07-18 04:00:15,856] [INFO] [ml.inference.predict]: Initialized PredictionEngine using model version 1.0.0
+[2026-07-18 04:00:15,926] [ERROR] [ml.inference.predict]: Error during prediction calculation: unhashable type: 'dict'
+[2026-07-18 04:00:53,297] [INFO] [ml.inference.predict]: Initialized PredictionEngine using model version 1.0.0
+[2026-07-18 04:00:53,441] [INFO] [ml.inference.predict]: Prediction Context logged: TX_ID=TX_API_001, RiskScore=10, Prediction=Legitimate, Priority=LOW, InvRequired=False
+[2026-07-18 04:01:25,882] [INFO] [ml.inference.predict]: Initialized PredictionEngine using model version 1.0.0
+[2026-07-18 04:01:26,082] [INFO] [ml.inference.predict]: Prediction Context logged: TX_ID=TX_API_001, RiskScore=10, Prediction=Legitimate, Priority=LOW, InvRequired=False
+[2026-07-18 04:01:52,326] [INFO] [ml.inference.predict]: Initialized PredictionEngine using model version 1.0.0
+[2026-07-18 04:01:52,525] [INFO] [ml.inference.predict]: Prediction Context logged: TX_ID=TX_API_001, RiskScore=10, Prediction=Legitimate, Priority=LOW, InvRequired=False

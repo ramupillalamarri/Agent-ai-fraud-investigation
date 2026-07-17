@@ -3,6 +3,12 @@ import sys
 import os
 import uuid
 import pytest
+
+if hasattr(sys.stdout, "reconfigure"):
+    try:
+        sys.stdout.reconfigure(encoding='utf-8')
+    except Exception:
+        pass
 from datetime import datetime
 
 # Setup PYTHONPATH so we can import app packages
@@ -91,8 +97,8 @@ def test_api_endpoints():
     # ----------------------------------------------------
     print("\n1. Testing 401 Unauthorized response...")
     # Temporarily remove auth override to simulate missing headers
-    app.dependency_overrides[get_current_user] = None
-    app.dependency_overrides[get_current_active_user] = None
+    app.dependency_overrides.pop(get_current_user, None)
+    app.dependency_overrides.pop(get_current_active_user, None)
     
     res = client.post("/api/v1/investigations/run", json={})
     print(f"Status Code: {res.status_code}")

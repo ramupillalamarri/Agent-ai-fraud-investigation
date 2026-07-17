@@ -85,7 +85,7 @@ class InvestigationResponse(BaseModel):
     created_by: Optional[uuid.UUID] = None
     created_at: datetime
     updated_at: datetime
-    additional_metadata: Dict[str, Any] = Field(default_factory=dict, alias="metadata")
+    additional_metadata: Dict[str, Any] = Field(default_factory=dict)
 
     agent_results: List[AgentResultSchema] = Field(default_factory=list)
     evidence: List[EvidenceSchema] = Field(default_factory=list)

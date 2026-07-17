@@ -2,7 +2,7 @@ import uuid
 import time
 import logging
 import functools
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 
@@ -82,8 +82,17 @@ async def run_investigation(
     
     # 1. Execute ML Model Prediction
     try:
-        # PredictionEngine accepts dictionary or DataFrame
-        pred_results = prediction_engine.predict(payload.model_dump())
+        # Pre-populate and map default fields for pipeline compatibility
+        payload_dict = payload.model_dump()
+        add_data = payload_dict.pop("additional_data", None) or {}
+        payload_dict["user_id"] = payload_dict.get("customer_id")
+        payload_dict["transaction_timestamp"] = payload_dict.get("timestamp") or datetime.now(timezone.utc)
+        payload_dict["user_age"] = add_data.get("user_age", 35)
+        payload_dict["account_balance"] = add_data.get("account_balance", 2000.0)
+        payload_dict["device_type"] = add_data.get("device_type", "mobile")
+        payload_dict["location_country"] = add_data.get("location_country", "US")
+
+        pred_results = prediction_engine.predict(payload_dict)
         if not pred_results:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
@@ -288,7 +297,7 @@ async def get_report(
             )
         
         # Build InvestigationReportResponse from DB entity
-        findings = [finding for ar in inv.agent_results for finding in ar.findings]
+        findings = [finding for ar in inv.agent_results for finding in ar.additional_metadata.get("findings", [])]
         recommendations = [r.recommendation for r in inv.recommendations]
         evidence = []
         for ev in inv.evidence:
