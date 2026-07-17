@@ -28,6 +28,8 @@ import {
   DropdownMenuShortcut,
 } from "@/components/ui/dropdown-menu";
 import { NotificationPanel } from "@/components/shared/notification-panel";
+import { useAuth } from "@/hooks/use-auth";
+import { getUserProfile } from "@/lib/auth";
 
 const ROUTE_LABELS: Record<string, string> = {
   dashboard: "Dashboard",
@@ -59,34 +61,31 @@ interface TopNavProps {
 
 export function TopNav({ onToggleSidebar }: TopNavProps) {
   const breadcrumbs = useBreadcrumbs();
+  const { user, logout } = useAuth();
   const [userEmail, setUserEmail] = useState("alex.morgan@company.com");
   const [userName, setUserName] = useState("Alex Morgan");
   const [initials, setInitials] = useState("AM");
+  const [userRole, setUserRole] = useState("Lead Investigator");
 
   useEffect(() => {
-    const storedEmail = localStorage.getItem("user_email");
-    if (storedEmail) {
-      setUserEmail(storedEmail);
-      if (storedEmail.includes("admin")) {
-        setUserName("System Administrator");
-        setInitials("SA");
-      } else {
-        const namePart = storedEmail.split("@")[0];
-        const formattedName = namePart
-          .split(/[._-]/)
-          .map((p) => p.charAt(0).toUpperCase() + p.slice(1))
-          .join(" ");
-        setUserName(formattedName);
-        const nameParts = formattedName.split(" ");
-        setInitials(nameParts.map((n) => n[0]).join("").slice(0, 2).toUpperCase());
-      }
+    const profile = getUserProfile();
+    if (profile) {
+      setUserEmail(profile.email);
+      setUserName(profile.full_name);
+      setUserRole(profile.roles[0] || "Lead Investigator");
+      const nameParts = profile.full_name.split(" ");
+      setInitials(nameParts.map((n) => n[0]).join("").slice(0, 2).toUpperCase());
+    } else if (user) {
+      setUserEmail(user.email);
+      setUserName(user.full_name);
+      setUserRole(user.roles[0] || "Lead Investigator");
+      const nameParts = user.full_name.split(" ");
+      setInitials(nameParts.map((n) => n[0]).join("").slice(0, 2).toUpperCase());
     }
-  }, []);
+  }, [user]);
 
-  const handleLogout = () => {
-    localStorage.removeItem("access_token");
-    localStorage.removeItem("refresh_token");
-    localStorage.removeItem("user_email");
+  const handleLogout = async () => {
+    await logout();
   };
 
   return (
@@ -156,7 +155,7 @@ export function TopNav({ onToggleSidebar }: TopNavProps) {
             <div className="hidden flex-col items-end text-right sm:flex">
               <span className="text-xs font-medium leading-none">{userName}</span>
               <span className="text-[10px] leading-none text-muted-foreground">
-                {userEmail.includes("admin") ? "Administrator" : "Lead Investigator"}
+                {userRole}
               </span>
             </div>
             <Avatar className="h-7 w-7">

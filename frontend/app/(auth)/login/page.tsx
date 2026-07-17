@@ -1,21 +1,42 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useState, useEffect } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { ShieldCheck, AlertTriangle, ArrowRight, Eye, EyeOff, Lock, Mail } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
+import { useAuth } from "@/hooks/use-auth";
+import { AxiosError } from "axios";
 
 export default function LoginPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const { login, isAuthenticated } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [registered, setRegistered] = useState(false);
+
+  // Redirect if already authenticated
+  useEffect(() => {
+    if (isAuthenticated) {
+      router.push("/dashboard");
+    }
+  }, [isAuthenticated, router]);
+
+  // Check if user just registered
+  useEffect(() => {
+    if (searchParams.get("registered") === "1") {
+      setRegistered(true);
+      // Clear the URL parameter
+      router.replace("/login");
+    }
+  }, [searchParams, router]);
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -27,30 +48,17 @@ export default function LoginPage() {
     setLoading(true);
     setError("");
 
-    // Mock API — simulate network delay
-    await new Promise((r) => setTimeout(r, 1200));
-
-    if (password.length < 6) {
-      setError("Incorrect email or password.");
+    try {
+      await login({ email, password });
+      router.push("/dashboard");
+    } catch (err) {
+      if (err instanceof AxiosError && err.response?.data?.detail) {
+        setError(err.response.data.detail);
+      } else {
+        setError("An unexpected error occurred. Please try again.");
+      }
       setLoading(false);
-      return;
     }
-
-    localStorage.setItem("access_token", "mock_access_token");
-    localStorage.setItem("refresh_token", "mock_refresh_token");
-    localStorage.setItem("user_email", email);
-    localStorage.setItem(
-      "user_profile",
-      JSON.stringify({
-        name: email.split("@")[0].replace(/[._]/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()),
-        email,
-        role: "Senior Fraud Analyst",
-        avatar: "",
-      })
-    );
-
-    router.push("/dashboard");
-    setLoading(false);
   }
 
   return (
@@ -135,6 +143,13 @@ export default function LoginPage() {
               Sign in to your enterprise account to continue.
             </p>
           </div>
+
+          {/* Success message for registered users */}
+          {registered && (
+            <div className="rounded-lg border border-green-500/20 bg-green-500/5 px-4 py-2.5 text-xs text-green-400">
+              Account created successfully. Please sign in with your credentials.
+            </div>
+          )}
 
           {/* Security notice */}
           <div className="flex items-start gap-3 rounded-lg border border-amber-500/20 bg-amber-500/5 px-4 py-3">

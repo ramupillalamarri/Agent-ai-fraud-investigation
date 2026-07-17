@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
@@ -17,6 +17,8 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { useAuth } from "@/hooks/use-auth";
+import { AxiosError } from "axios";
 
 const FEATURES = [
   "AI-powered fraud detection & scoring",
@@ -34,6 +36,7 @@ const PASSWORD_RULES = [
 
 export default function RegisterPage() {
   const router = useRouter();
+  const { register, isAuthenticated } = useAuth();
   const [form, setForm] = useState({
     fullName: "",
     email: "",
@@ -45,6 +48,13 @@ export default function RegisterPage() {
   const [showConfirm, setShowConfirm] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+
+  // Redirect if already authenticated
+  useEffect(() => {
+    if (isAuthenticated) {
+      router.push("/dashboard");
+    }
+  }, [isAuthenticated, router]);
 
   const set = (key: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement>) =>
     setForm((f) => ({ ...f, [key]: e.target.value }));
@@ -67,10 +77,23 @@ export default function RegisterPage() {
     }
 
     setLoading(true);
-    // Mock API — simulate registration
-    await new Promise((r) => setTimeout(r, 1400));
-    setLoading(false);
-    router.push("/login?registered=1");
+    
+    try {
+      await register({
+        email: form.email,
+        password: form.password,
+        full_name: form.fullName,
+      });
+      setLoading(false);
+      router.push("/login?registered=1");
+    } catch (err) {
+      if (err instanceof AxiosError && err.response?.data?.detail) {
+        setError(err.response.data.detail);
+      } else {
+        setError("An unexpected error occurred. Please try again.");
+      }
+      setLoading(false);
+    }
   }
 
   const passwordStrength = PASSWORD_RULES.filter((r) => r.test(form.password)).length;
