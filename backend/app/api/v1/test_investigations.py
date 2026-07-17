@@ -151,7 +151,8 @@ def test_api_endpoints():
         "customer_id": "cust_999",
         "amount": 1200.00,  # Exceeds limit to trigger rules
         "ip_address": "198.51.100.10",
-        "device_id": "DEV-API-77"
+        "device_id": "DEV-API-77",
+        "merchant": "MERCH_SAFE_01"
     }
     res = client.post("/api/v1/investigations/run", json=valid_payload)
     print(f"Status Code: {res.status_code}")

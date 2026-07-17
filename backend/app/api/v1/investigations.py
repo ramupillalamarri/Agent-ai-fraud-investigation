@@ -24,6 +24,7 @@ from app.agents.orchestrator.orchestrator import InvestigationOrchestrator
 from app.agents.investigators.customer_agent import CustomerInvestigationAgent
 from app.agents.investigators.device.device_agent import DeviceInvestigationAgent
 from app.agents.investigators.network.network_agent import NetworkRiskAgent
+from app.agents.investigators.merchant.merchant_agent import MerchantInvestigationAgent
 
 from ml.inference.predict import PredictionEngine
 
@@ -45,6 +46,7 @@ def get_agent_registry() -> AgentRegistry:
     registry.register(CustomerInvestigationAgent())
     registry.register(DeviceInvestigationAgent())
     registry.register(NetworkRiskAgent())
+    registry.register(MerchantInvestigationAgent())
     return registry
 
 def get_orchestrator(registry: AgentRegistry = Depends(get_agent_registry)) -> InvestigationOrchestrator:
