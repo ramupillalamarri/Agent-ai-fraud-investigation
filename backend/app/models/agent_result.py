@@ -18,6 +18,7 @@ class AgentResult(Base, UUIDModelMixin, TimeStampedModelMixin):
     status: Mapped[str] = mapped_column(String(50), nullable=False)
     confidence_score: Mapped[float] = mapped_column(Float, nullable=False)
     execution_time_ms: Mapped[int] = mapped_column(Integer, nullable=False)
+    summary: Mapped[Optional[str]] = mapped_column(String(1000), nullable=True)
     additional_metadata: Mapped[Dict[str, Any]] = mapped_column("metadata", JSON().with_variant(JSONB(), "postgresql"), default=dict, nullable=False)
 
     # Relationships

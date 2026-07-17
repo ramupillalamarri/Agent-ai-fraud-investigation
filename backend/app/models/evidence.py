@@ -22,6 +22,7 @@ class Evidence(Base, UUIDModelMixin, TimeStampedModelMixin):
     type: Mapped[str] = mapped_column(String(100), nullable=False)
     severity: Mapped[str] = mapped_column(String(50), index=True, nullable=False)
     confidence: Mapped[float] = mapped_column(Float, nullable=False)
+    title: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
     description: Mapped[str] = mapped_column(Text, nullable=False)
     source: Mapped[str] = mapped_column(String(255), nullable=False)
     additional_metadata: Mapped[Dict[str, Any]] = mapped_column("metadata", JSON().with_variant(JSONB(), "postgresql"), default=dict, nullable=False)

@@ -14,6 +14,7 @@ from app.models.agent_result import AgentResult
 from app.models.evidence import Evidence
 from app.models.recommendation import Recommendation
 from app.models.investigation_timeline import InvestigationTimeline
+from app.models.timeline_event import TimelineEvent
 
 __all__ = [
     "Base",
@@ -32,4 +33,5 @@ __all__ = [
     "Evidence",
     "Recommendation",
     "InvestigationTimeline",
+    "TimelineEvent",
 ]

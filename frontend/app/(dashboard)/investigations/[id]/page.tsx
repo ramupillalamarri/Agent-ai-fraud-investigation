@@ -18,7 +18,7 @@ import { Separator } from "@/components/ui/separator";
 import { useInvestigation } from "@/hooks/useInvestigation";
 import { LoadingSpinner, ErrorCard, StatusBadge, RiskBadge } from "@/components/shared/feedback";
 import { EvidenceCard, RecommendationCard } from "@/components/shared/cards";
-import { Timeline } from "@/components/shared/timeline";
+import { InvestigationTimeline } from "@/components/investigation/InvestigationTimeline";
 
 interface PageProps {
   params: Promise<{ id: string }>;
@@ -280,9 +280,12 @@ export default function CaseDetailsPage({ params }: PageProps) {
           )}
 
           {activeTab === "history" && (
-            <Card className="p-6 bg-white border border-slate-100 shadow-sm rounded-xl space-y-4">
-              <h4 className="text-sm font-bold text-slate-800">Framework Audit Trail</h4>
-              <Timeline events={timeline} />
+            <Card className="p-6 bg-white border border-slate-100 shadow-sm rounded-xl">
+              <InvestigationTimeline 
+                events={timeline} 
+                onRefresh={refetch} 
+                isRefreshing={loading} 
+              />
             </Card>
           )}
         </div>
