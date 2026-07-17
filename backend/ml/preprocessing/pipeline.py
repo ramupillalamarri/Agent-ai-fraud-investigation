@@ -219,8 +219,21 @@ class FraudPreprocessingPipeline:
         logger.info("Saving engineered features to feature store...")
         fs_dir = self.config.paths.feature_store_dir
         ensure_directory_exists(fs_dir)
+        target_path = os.path.join(fs_dir, filename)
         try:
-            df.to_csv(os.path.join(fs_dir, filename), index=False)
+            temp_path = target_path + ".tmp"
+            if os.path.exists(temp_path):
+                try:
+                    os.remove(temp_path)
+                except Exception:
+                    pass
+            df.to_csv(temp_path, index=False)
+            if os.path.exists(target_path):
+                try:
+                    os.remove(target_path)
+                except Exception:
+                    pass
+            os.rename(temp_path, target_path)
             logger.debug("Successfully saved features to feature store: %s", filename)
         except Exception as e:
             logger.error("Failed to save to feature store: %s", str(e))

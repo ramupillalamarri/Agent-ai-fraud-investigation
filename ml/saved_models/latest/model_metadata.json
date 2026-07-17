@@ -1,10 +1,13 @@
 {
     "model_version": "1.0.0",
     "preprocessing_version": "1.0.0",
-    "training_timestamp": "2026-07-17T11:32:27.688298+00:00",
-    "dataset_name": "transactions.csv",
-    "dataset_size": 100,
-    "feature_count": 20,
+    "training_date": "2026-07-17",
+    "training_timestamp": "2026-07-17T13:08:29.525193+00:00",
+    "dataset_name": "fraudTrain.csv / fraudTest.csv",
+    "dataset_size": 1852394,
+    "training_samples": 1296675,
+    "testing_samples": 555719,
+    "feature_count": 30,
     "feature_names": [
         "amount",
         "user_age",
@@ -15,17 +18,27 @@
         "user_transaction_frequency",
         "merchant_transaction_frequency",
         "device_transaction_frequency",
-        "payment_method_credit",
-        "payment_method_debit",
-        "merchant_category_electronics",
-        "merchant_category_retail",
-        "location_country_CA",
-        "location_country_US",
+        "amount_bucket_critical",
         "amount_bucket_high",
         "amount_bucket_low",
         "amount_bucket_medium",
-        "device_type_desktop",
-        "device_type_mobile"
+        "device_type_mobile",
+        "payment_method_credit",
+        "location_country_US",
+        "merchant_category_entertainment",
+        "merchant_category_food_dining",
+        "merchant_category_gas_transport",
+        "merchant_category_grocery_net",
+        "merchant_category_grocery_pos",
+        "merchant_category_health_fitness",
+        "merchant_category_home",
+        "merchant_category_kids_pets",
+        "merchant_category_misc_net",
+        "merchant_category_misc_pos",
+        "merchant_category_personal_care",
+        "merchant_category_shopping_net",
+        "merchant_category_shopping_pos",
+        "merchant_category_travel"
     ],
     "algorithm": "XGBClassifier",
     "hyperparameters": {
@@ -37,17 +50,31 @@
         "scale_pos_weight": 1.0
     },
     "metrics": {
-        "accuracy": 0.95,
-        "precision": 0.0,
-        "recall": 0.0,
-        "f1_score": 0.0,
-        "roc_auc": 0.9473684210526316,
-        "pr_auc": 0.3333333333333333,
+        "accuracy": 0.9987061806416552,
+        "precision": 0.9046538024971623,
+        "recall": 0.7431235431235431,
+        "f1_score": 0.8159713335039672,
+        "roc_auc": 0.9971137841866958,
+        "pr_auc": 0.8739531883764,
         "confusion_matrix": {
-            "tn": 19,
-            "fp": 0,
-            "fn": 1,
-            "tp": 0
+            "tn": 553406,
+            "fp": 168,
+            "fn": 551,
+            "tp": 1594
+        }
+    },
+    "evaluation_metrics": {
+        "accuracy": 0.9987061806416552,
+        "precision": 0.9046538024971623,
+        "recall": 0.7431235431235431,
+        "f1_score": 0.8159713335039672,
+        "roc_auc": 0.9971137841866958,
+        "pr_auc": 0.8739531883764,
+        "confusion_matrix": {
+            "tn": 553406,
+            "fp": 168,
+            "fn": 551,
+            "tp": 1594
         }
     }
 }

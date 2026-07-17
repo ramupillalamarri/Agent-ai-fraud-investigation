@@ -28,3 +28,28 @@
 [2026-07-17 17:02:27,179] [INFO] [__main__:train.py:128]: Completed model training execution
 [2026-07-17 17:02:27,688] [INFO] [__main__:train.py:153]: Saving trained model artifacts to registry...
 [2026-07-17 17:02:27,897] [INFO] [__main__:train.py:199]: Successfully serialized and saved all model registry artifacts.
+[2026-07-17 17:56:41,349] [INFO] [__main__:train.py:42]: Initialized ModelTrainer
+[2026-07-17 17:56:41,349] [INFO] [__main__:train.py:54]: Splitting dataset into train and validation sets (test_size=0.2)
+[2026-07-17 17:56:42,048] [INFO] [__main__:train.py:63]: Train shape: (1037340, 0), Val shape: (259335, 0)
+[2026-07-17 17:56:42,048] [INFO] [__main__:train.py:112]: Starting model training...
+[2026-07-17 17:56:42,048] [INFO] [__main__:train.py:75]: Initializing XGBClassifier with training config hyper-parameters
+[2026-07-17 17:56:42,082] [ERROR] [__main__:train.py:131]: Error encountered during training: list index out of range
+[2026-07-17 18:16:43,762] [INFO] [__main__:train.py:42]: Initialized ModelTrainer
+[2026-07-17 18:16:43,763] [INFO] [__main__:train.py:54]: Splitting dataset into train and validation sets (test_size=0.2)
+[2026-07-17 18:16:47,233] [INFO] [__main__:train.py:63]: Train shape: (1037340, 30), Val shape: (259335, 30)
+[2026-07-17 18:16:47,234] [INFO] [__main__:train.py:112]: Starting model training...
+[2026-07-17 18:16:47,234] [INFO] [__main__:train.py:75]: Initializing XGBClassifier with training config hyper-parameters
+[2026-07-17 18:19:18,105] [INFO] [__main__:train.py:128]: Completed model training execution
+[2026-07-17 18:19:35,690] [INFO] [__main__:train.py:157]: Saving trained model artifacts to registry...
+[2026-07-17 18:19:35,814] [INFO] [__main__:train.py:207]: Successfully serialized and saved all model registry artifacts.
+[2026-07-17 18:19:35,823] [INFO] [__main__:train.py:327]: Executing post-training inference validation check...
+[2026-07-17 18:35:18,171] [INFO] [__main__:train.py:42]: Initialized ModelTrainer
+[2026-07-17 18:35:18,171] [INFO] [__main__:train.py:54]: Splitting dataset into train and validation sets (test_size=0.2)
+[2026-07-17 18:35:21,827] [INFO] [__main__:train.py:63]: Train shape: (1037340, 30), Val shape: (259335, 30)
+[2026-07-17 18:35:21,828] [INFO] [__main__:train.py:112]: Starting model training...
+[2026-07-17 18:35:21,828] [INFO] [__main__:train.py:75]: Initializing XGBClassifier with training config hyper-parameters
+[2026-07-17 18:38:15,306] [INFO] [__main__:train.py:128]: Completed model training execution
+[2026-07-17 18:38:29,524] [INFO] [__main__:train.py:157]: Saving trained model artifacts to registry...
+[2026-07-17 18:38:29,622] [INFO] [__main__:train.py:207]: Successfully serialized and saved all model registry artifacts.
+[2026-07-17 18:38:29,630] [INFO] [__main__:train.py:327]: Executing post-training inference validation check...
+[2026-07-17 18:38:36,966] [INFO] [__main__:train.py:342]: Inference verification completed successfully. Outputs schema validated.

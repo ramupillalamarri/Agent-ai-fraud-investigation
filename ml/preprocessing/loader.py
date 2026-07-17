@@ -74,6 +74,66 @@ class DataLoader:
             raise ValueError(error_msg)
         logger.debug("Schema column presence validation succeeded.")
 
+    def _map_kaggle_columns(self, df: pd.DataFrame) -> pd.DataFrame:
+        """Translates Kaggle fraud detection columns to the schema expected by the pipeline."""
+        df = df.copy()
+        
+        # Check if Kaggle columns are present
+        kaggle_cols = ["trans_num", "cc_num", "merchant", "category", "amt", "trans_date_trans_time", "dob"]
+        if all(col in df.columns for col in kaggle_cols):
+            logger.info("Auto-detecting Kaggle Fraud Detection dataset format. Mapping columns...")
+            
+            # Map existing columns
+            df["transaction_id"] = df["trans_num"].astype(str)
+            df["user_id"] = "USR_" + df["cc_num"].astype(str).str[-4:]
+            df["merchant_id"] = df["merchant"].astype(str)
+            df["merchant_category"] = df["category"].astype(str)
+            df["amount"] = df["amt"].astype(float)
+            
+            # Timestamp coercion
+            df["transaction_timestamp"] = pd.to_datetime(df["trans_date_trans_time"])
+            
+            # Calculate user age from dob and transaction timestamp
+            dob_dt = pd.to_datetime(df["dob"])
+            df["user_age"] = (df["transaction_timestamp"] - dob_dt).dt.days // 365
+            
+            # Map/generate missing columns expected by pipeline
+            # Generate deterministic IP address using zip code if present, otherwise default
+            if "zip" in df.columns:
+                df["ip_address"] = "192.168.1." + (df["zip"] % 250).astype(str)
+            else:
+                df["ip_address"] = "192.168.1.1"
+                
+            df["device_id"] = "DEV_" + df["cc_num"].astype(str).str[-4:]
+            
+            # Mock account balance using city_pop if present, else default
+            if "city_pop" in df.columns:
+                df["account_balance"] = df["city_pop"].astype(float) * 2.5
+            else:
+                df["account_balance"] = 1000.0
+                
+            df["payment_method"] = "credit"
+            df["device_type"] = "mobile"
+            df["location_country"] = "US"
+                
+            # Retain target column
+            if "is_fraud" in df.columns:
+                df["is_fraud"] = df["is_fraud"].astype(int)
+                
+            # Keep only the expected columns
+            expected_cols = [
+                "transaction_id", "user_id", "merchant_id", "device_id", "ip_address",
+                "amount", "user_age", "account_balance", "merchant_category", "payment_method",
+                "device_type", "location_country", "transaction_timestamp"
+            ]
+            if "is_fraud" in df.columns:
+                expected_cols.append("is_fraud")
+                
+            df = df[expected_cols]
+            logger.info("Successfully translated Kaggle columns to standard pipeline schema.")
+            
+        return df
+
     def load_csv(self, file_path: str) -> pd.DataFrame:
         """Loads a raw CSV dataset and runs schema and target validations.
         
@@ -89,6 +149,9 @@ class DataLoader:
         try:
             df = pd.read_csv(file_path)
             logger.info("Successfully loaded CSV dataset with shape %s", df.shape)
+            
+            # Map Kaggle schema to standard layout
+            df = self._map_kaggle_columns(df)
             
             # Run schema validations
             target_col = self.preprocessing_config.target_column

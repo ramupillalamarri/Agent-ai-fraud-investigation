@@ -8,3 +8,13 @@
 [2026-07-17 17:07:56,288] [INFO] [__main__]: Prediction Context logged: TX_ID=TX9999, RiskScore=4, Prediction=Legitimate, Priority=LOW, InvRequired=False
 [2026-07-17 17:07:56,289] [INFO] [__main__]: Prediction Context logged: TX_ID=TX8888, RiskScore=4, Prediction=Legitimate, Priority=LOW, InvRequired=False
 [2026-07-17 17:07:56,290] [ERROR] [__main__]: Error during prediction calculation: Input validation failed. Missing expected columns: ['amount', 'user_age', 'account_balance', 'merchant_category', 'payment_method', 'device_type', 'location_country', 'transaction_timestamp', 'merchant_id', 'device_id', 'ip_address']
+[2026-07-17 18:19:35,971] [INFO] [ml.inference.predict]: Initialized PredictionEngine using model version 1.0.0
+[2026-07-17 18:19:42,567] [ERROR] [ml.inference.predict]: Error during prediction calculation: Input validation failed. Missing expected columns: ['amount', 'user_age', 'account_balance', 'merchant_category', 'payment_method', 'device_type', 'location_country', 'transaction_timestamp', 'transaction_id', 'user_id', 'merchant_id', 'device_id', 'ip_address']
+[2026-07-17 18:38:29,768] [INFO] [ml.inference.predict]: Initialized PredictionEngine using model version 1.0.0
+[2026-07-17 18:38:36,821] [INFO] [ml.inference.predict]: Auto-detecting Kaggle Fraud Detection dataset format during prediction. Mapping columns...
+[2026-07-17 18:38:36,844] [INFO] [ml.inference.predict]: Successfully translated Kaggle columns to standard pipeline schema.
+[2026-07-17 18:38:36,948] [INFO] [ml.inference.predict]: Prediction Context logged: TX_ID=2da90c7d74bd46a0caf3777415b3ebd3, RiskScore=0, Prediction=Legitimate, Priority=LOW, InvRequired=False
+[2026-07-17 18:38:36,951] [INFO] [ml.inference.predict]: Prediction Context logged: TX_ID=324cc204407e99f51b0d6ca0055005e7, RiskScore=0, Prediction=Legitimate, Priority=LOW, InvRequired=False
+[2026-07-17 18:38:36,952] [INFO] [ml.inference.predict]: Prediction Context logged: TX_ID=c81755dbbbea9d5c77f094348a7579be, RiskScore=0, Prediction=Legitimate, Priority=LOW, InvRequired=False
+[2026-07-17 18:38:36,957] [INFO] [ml.inference.predict]: Prediction Context logged: TX_ID=2159175b9efe66dc301f149d3d5abf8c, RiskScore=0, Prediction=Legitimate, Priority=LOW, InvRequired=False
+[2026-07-17 18:38:36,966] [INFO] [ml.inference.predict]: Prediction Context logged: TX_ID=57ff021bd3f328f8738bb535c302a31b, RiskScore=0, Prediction=Legitimate, Priority=LOW, InvRequired=False
