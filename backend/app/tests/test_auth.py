@@ -10,7 +10,7 @@ async def test_auth_workflow_integration(client: AsyncClient) -> None:
     # 1. Register a new Analyst user
     # ==========================================
     register_payload = {
-        "email": "analyst@fraudinvestigation.com",
+        "email": "marcus_reid@fraudinvestigation.com",
         "password": "AnalystPassword.123",
         "full_name": "Marcus Reid",
     }

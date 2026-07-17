@@ -242,4 +242,18 @@ class AuthService:
             admin_user.roles.append(seeded_roles["Admin"])
             self.db.add(admin_user)
 
+        # 5. Seed Default Fraud Analyst User
+        analyst_email = "analyst@fraudinvestigation.com"
+        analyst_user = await self.user_repo.get_by_email(analyst_email)
+        if not analyst_user:
+            hashed_pwd = security.get_password_hash("Analyst.123")
+            analyst_user = User(
+                email=analyst_email,
+                hashed_password=hashed_pwd,
+                full_name="Default Fraud Analyst",
+                is_active=True,
+            )
+            analyst_user.roles.append(seeded_roles["Fraud Analyst"])
+            self.db.add(analyst_user)
+
         await self.db.commit()
