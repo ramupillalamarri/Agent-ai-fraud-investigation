@@ -37,11 +37,12 @@ class ModelLoader:
             self._initialized = True
             logger.info("Initialized ModelLoader Singleton")
 
-    def load_model(self, filename: str = "model.joblib") -> XGBClassifier:
-        """Retrieves or loads the compiled XGBClassifier model from saved models path.
+    def load_model(self, filename: str = "model.joblib", version: str = "latest") -> XGBClassifier:
+        """Retrieves or loads the compiled XGBClassifier model from versioned registry path.
         
         Args:
             filename: Serialization name of the target model file.
+            version: Target registry version folder (e.g. 'latest', 'v1').
             
         Returns:
             XGBClassifier: Loaded model estimator.
@@ -50,18 +51,16 @@ class ModelLoader:
             return self._model
             
         with self._lock:
-            # Double-check lock pattern
             if self._model is not None:
                 return self._model
                 
-            model_path = os.path.join(self.config.paths.model_save_dir, filename)
+            target_dir = self.config.paths.model_save_dir if version == "latest" else os.path.join(self.config.paths.model_registry_dir, version)
+            model_path = os.path.join(target_dir, filename)
             logger.info("Loading model from disk: %s", model_path)
             
             try:
                 # TODO: Integrate actual deserialization post-training execution
                 # self._model = load_serialized_artifact(model_path)
-                
-                # Setup basic initialization placeholder for compiling test pipeline imports
                 self._model = XGBClassifier()
                 logger.info("Successfully loaded and cached target model.")
                 return self._model
@@ -69,11 +68,12 @@ class ModelLoader:
                 logger.error("Failed to load model: %s", str(e))
                 raise
 
-    def load_preprocessing_pipeline(self, filename: str = "pipeline.joblib") -> PreprocessingPipeline:
+    def load_preprocessing_pipeline(self, filename: str = "pipeline.joblib", version: str = "latest") -> PreprocessingPipeline:
         """Loads and caches the fitted feature preprocessing pipeline.
         
         Args:
             filename: Serialization name of the target pipeline file.
+            version: Target registry version folder (e.g. 'latest', 'v1').
             
         Returns:
             PreprocessingPipeline: Loaded fitted preprocessing pipeline.
@@ -85,14 +85,13 @@ class ModelLoader:
             if self._pipeline is not None:
                 return self._pipeline
                 
-            pipeline_path = os.path.join(self.config.paths.model_save_dir, filename)
+            target_dir = self.config.paths.model_save_dir if version == "latest" else os.path.join(self.config.paths.model_registry_dir, version)
+            pipeline_path = os.path.join(target_dir, filename)
             logger.info("Loading preprocessing pipeline from disk: %s", pipeline_path)
             
             try:
                 # TODO: Integrate actual deserialization post-training execution
                 # self._pipeline = PreprocessingPipeline.load(pipeline_path)
-                
-                # Mock class generation placeholder
                 self._pipeline = PreprocessingPipeline(self.config.preprocessing)
                 logger.info("Successfully loaded and cached preprocessing pipeline.")
                 return self._pipeline

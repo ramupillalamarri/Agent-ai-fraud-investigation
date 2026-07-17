@@ -102,6 +102,9 @@ class DataLoader:
                 self.preprocessing_config.id_columns
             )
             
+            # Exclude engineered columns that are created dynamically by feature engineering
+            expected_cols = [col for col in expected_cols if col not in ["amount_bucket"]]
+            
             # Filter expected columns to exclude target (which is checked separately)
             self.validate_schema(df, expected_cols)
             

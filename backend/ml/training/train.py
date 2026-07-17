@@ -117,43 +117,63 @@ class ModelTrainer:
             logger.error("Error encountered during training: %s", str(e))
             raise
 
-    def save_model_artifacts(self, model_file_name: str, pipeline_file_name: str, metadata_file_name: str) -> None:
-        """Saves the trained model, preprocessing pipeline, and model metadata to disk.
+    def save_model_artifacts(
+        self, 
+        model_file_name: str = "model.joblib", 
+        pipeline_file_name: str = "pipeline.joblib", 
+        metadata_file_name: str = "model_metadata.json",
+        metrics_summary: Optional[dict] = None
+    ) -> None:
+        """Saves the trained model, preprocessing pipeline, and detailed metadata to the versioned registry.
         
         Args:
-            model_file_name: Target filename for the model (e.g. 'model.joblib').
-            pipeline_file_name: Target filename for the preprocessing pipeline.
-            metadata_file_name: Target filename for metadata JSON.
+            model_file_name: Filename for model binary.
+            pipeline_file_name: Filename for pipeline object.
+            metadata_file_name: Filename for the registry metadata file.
+            metrics_summary: Optional dictionary containing evaluation metric values.
         """
-        logger.info("Saving trained model artifacts...")
+        logger.info("Saving trained model artifacts to registry...")
         
         if self.model is None or self.preprocessing_pipeline is None:
             raise ValueError("Cannot save artifacts; model or preprocessing pipeline has not been trained/fitted.")
             
-        model_path = os.path.join(self.config.paths.model_save_dir, model_file_name)
-        pipeline_path = os.path.join(self.config.paths.model_save_dir, pipeline_file_name)
-        metadata_path = os.path.join(self.config.paths.model_save_dir, metadata_file_name)
+        import datetime
+        timestamp_str = datetime.datetime.now(datetime.timezone.utc).isoformat()
+        
+        # Save to both 'latest/' and version-specific registry paths (e.g. 'v1/')
+        registry_paths = [self.config.paths.model_save_dir, self.config.paths.model_v1_dir]
         
         try:
-            # Save estimators
-            save_serialized_artifact(self.model, model_path)
-            self.preprocessing_pipeline.save(pipeline_path)
-            
-            # Save metadata summary
-            metadata = {
-                "model_name": self.config.model.model_name,
-                "model_version": self.config.model.model_version,
-                "features_used": self.preprocessing_pipeline.feature_columns,
-                "hyperparameters": {
-                    "n_estimators": self.config.training.n_estimators,
-                    "max_depth": self.config.training.max_depth,
-                    "learning_rate": self.config.training.learning_rate,
+            for target_dir in registry_paths:
+                ensure_directory_exists(target_dir)
+                
+                model_path = os.path.join(target_dir, model_file_name)
+                pipeline_path = os.path.join(target_dir, pipeline_file_name)
+                metadata_path = os.path.join(target_dir, metadata_file_name)
+                
+                # Save serialization binaries
+                save_serialized_artifact(self.model, model_path)
+                self.preprocessing_pipeline.save(pipeline_path)
+                
+                # Assemble detailed model metadata as requested
+                metadata = {
+                    "model_version": self.config.model.model_version,
+                    "algorithm": self.config.model.algorithm,
+                    "training_timestamp": timestamp_str,
+                    "metrics": metrics_summary or {"aucpr": 0.0, "roc_auc": 0.0},
+                    "feature_names": self.preprocessing_pipeline.feature_columns,
+                    "preprocessing_version": self.config.model.preprocessing_version,
+                    "hyperparameters": {
+                        "n_estimators": self.config.training.n_estimators,
+                        "max_depth": self.config.training.max_depth,
+                        "learning_rate": self.config.training.learning_rate,
+                    }
                 }
-            }
-            save_json_metadata(metadata, metadata_path)
-            logger.info("Successfully serialized and saved all model training artifacts.")
+                save_json_metadata(metadata, metadata_path)
+                
+            logger.info("Successfully serialized and saved all model registry artifacts.")
         except Exception as e:
-            logger.error("Error saving model training artifacts: %s", str(e))
+            logger.error("Error saving model training registry artifacts: %s", str(e))
             raise
 
 if __name__ == "__main__":
