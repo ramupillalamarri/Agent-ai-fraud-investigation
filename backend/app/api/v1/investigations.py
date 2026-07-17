@@ -21,6 +21,7 @@ from app.schemas.investigation import (
 # Import default concrete investigators to register them in orchestrator
 from app.agents.orchestrator.registry import AgentRegistry
 from app.agents.orchestrator.orchestrator import InvestigationOrchestrator
+from app.agents.langgraph.orchestrator import LangGraphOrchestrator
 from app.agents.investigators.customer_agent import CustomerInvestigationAgent
 from app.agents.investigators.device.device_agent import DeviceInvestigationAgent
 from app.agents.investigators.network.network_agent import NetworkRiskAgent
@@ -52,8 +53,8 @@ def get_agent_registry() -> AgentRegistry:
     return registry
 
 def get_orchestrator(registry: AgentRegistry = Depends(get_agent_registry)) -> InvestigationOrchestrator:
-    """Dependency provider for InvestigationOrchestrator."""
-    return InvestigationOrchestrator(registry)
+    """Dependency provider for InvestigationOrchestrator returning compiled LangGraph execution engines."""
+    return LangGraphOrchestrator(registry)
 
 @functools.lru_cache()
 def get_prediction_engine() -> PredictionEngine:
