@@ -1,5 +1,5 @@
 from typing import List, Optional
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, EmailStr, Field
 
 
 class Token(BaseModel):
@@ -15,7 +15,7 @@ class TokenPayload(BaseModel):
 
     sub: Optional[str] = None
     type: Optional[str] = None
-    scopes: List[str] = []
+    scopes: List[str] = Field(default_factory=list)
 
 
 class TokenRefreshRequest(BaseModel):
