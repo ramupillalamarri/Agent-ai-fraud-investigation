@@ -134,6 +134,56 @@ async def verify_service_layer():
         closed = await service.close_investigation(inv_id, "Verified fraud ring activity.")
         assert closed.status == "CLOSED"
         print(f"  * New status: {closed.status}")
+
+        # 8. Test create_investigation and duplicate validation
+        print("\n6. Creating new investigation dossier...")
+        new_inv = await service.create_investigation(transaction_id="TX_NEW_88", status="OPEN", priority="MEDIUM")
+        assert new_inv.status == "OPEN"
+        assert new_inv.priority == "MEDIUM"
+        assert new_inv.case_number.startswith("INV-")
+        print(f"  * Created successfully: Case={new_inv.case_number}")
+
+        # Try to duplicate
+        try:
+            await service.create_investigation(transaction_id="TX_NEW_88")
+            assert False, "Should raise duplication error"
+        except Exception as e:
+            print(f"  * Duplication caught: {str(e)}")
+
+        # 9. Test assign_investigator, change_priority, change_status
+        user_uuid = uuid.uuid4()
+        await service.assign_investigator(str(new_inv.id), user_uuid)
+        await service.change_priority(str(new_inv.id), "HIGH")
+        await service.change_status(str(new_inv.id), "IN_PROGRESS")
+        
+        updated = await service.get_investigation(str(new_inv.id))
+        assert updated.assigned_to == user_uuid
+        assert updated.priority == "HIGH"
+        assert updated.status == "IN_PROGRESS"
+        print("7. Assignments, Priority and Status updates verified successfully.")
+
+        # Test invalid status transition
+        try:
+            await service.change_status(str(new_inv.id), "ARCHIVED")
+            assert False, "Should reject transition IN_PROGRESS -> ARCHIVED"
+        except Exception as e:
+            print(f"  * Invalid transition rejected: {str(e)}")
+
+        # 10. Search & Retrieval
+        by_case = await service.get_by_case_number(updated.case_number)
+        assert by_case is not None
+        assert by_case.id == new_inv.id
+
+        search_res, search_cnt = await service.search_investigations("TX_NEW")
+        assert search_cnt == 1
+        assert search_res[0].id == new_inv.id
+        print("8. Retrieval and Search queries verified successfully.")
+
+        # Soft Delete
+        await service.soft_delete_investigation(str(new_inv.id))
+        deleted = await service.get_investigation(str(new_inv.id))
+        assert deleted.status == "DELETED"
+        print("9. Soft delete verification completed.")
         
     print("\n=== All Repository & Service Flow Tests Passed Successfully! ===")
 
