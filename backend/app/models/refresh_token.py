@@ -20,8 +20,11 @@ class RefreshToken(Base, UUIDModelMixin, TimeStampedModelMixin):
         index=True,
         nullable=False,
     )
-    token: Mapped[str] = mapped_column(
-        String(512), unique=True, index=True, nullable=False
+    token_hash: Mapped[str] = mapped_column(
+        String(64), unique=True, index=True, nullable=False
+    )
+    family_id: Mapped[uuid.UUID] = mapped_column(
+        index=True, nullable=False
     )
     expires_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False

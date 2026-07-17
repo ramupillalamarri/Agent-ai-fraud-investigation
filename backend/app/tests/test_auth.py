@@ -1,5 +1,10 @@
 import pytest
 from httpx import AsyncClient
+from sqlalchemy import select
+
+from app.core import security
+from app.main import app
+from app.models.refresh_token import RefreshToken
 
 
 @pytest.mark.asyncio
@@ -148,3 +153,37 @@ async def test_auth_workflow_integration(client: AsyncClient) -> None:
         "/api/v1/auth/refresh", json={"refresh_token": new_refresh_token}
     )
     assert post_logout_refresh.status_code == 401
+
+
+@pytest.mark.asyncio
+async def test_refresh_tokens_are_hashed_and_replay_revokes_session_family(
+    client: AsyncClient,
+) -> None:
+    register_payload = {
+        "email": "token-security@fraudinvestigation.com",
+        "password": "TokenSecurity.123",
+        "full_name": "Token Security",
+    }
+    assert (await client.post("/api/v1/auth/register", json=register_payload)).status_code == 201
+    login = await client.post(
+        "/api/v1/auth/login",
+        json={"email": register_payload["email"], "password": register_payload["password"]},
+    )
+    original_refresh = login.json()["refresh_token"]
+    rotated = await client.post(
+        "/api/v1/auth/refresh", json={"refresh_token": original_refresh}
+    )
+    assert rotated.status_code == 200
+    current_refresh = rotated.json()["refresh_token"]
+
+    async with app.state.db_session_maker() as session:
+        stored_tokens = list((await session.execute(select(RefreshToken))).scalars())
+    assert all(token.token_hash != original_refresh for token in stored_tokens)
+    assert any(token.token_hash == security.token_hash(original_refresh) for token in stored_tokens)
+
+    assert (
+        await client.post("/api/v1/auth/refresh", json={"refresh_token": original_refresh})
+    ).status_code == 401
+    assert (
+        await client.post("/api/v1/auth/refresh", json={"refresh_token": current_refresh})
+    ).status_code == 401

@@ -32,7 +32,12 @@ async def get_current_user(
     try:
         # Decodes the JWT token claims
         payload = jwt.decode(
-            token, settings.SECRET_KEY, algorithms=[security.ALGORITHM]
+            token,
+            settings.SECRET_KEY,
+            algorithms=[security.ALGORITHM],
+            audience=settings.JWT_AUDIENCE,
+            issuer=settings.JWT_ISSUER,
+            options={"require": ["exp", "sub", "type", "jti", "iat", "nbf"]},
         )
         user_id_str: str = payload.get("sub")  # type: ignore
         token_type: str = payload.get("type")  # type: ignore

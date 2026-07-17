@@ -30,6 +30,11 @@ class AuthService:
 
     async def register_user(self, user_in: UserCreate) -> User:
         """Registers a new user, hashes password, and associates the default 'Fraud Analyst' role."""
+        if not settings.ALLOW_PUBLIC_REGISTRATION:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Public registration is disabled. Request an administrator invitation.",
+            )
         # 1. Verify email uniqueness
         existing_user = await self.user_repo.get_by_email(user_in.email)
         if existing_user:
@@ -73,7 +78,13 @@ class AuthService:
     async def authenticate(self, email: str, password: str) -> User:
         """Validates credentials. Raises 401 if invalid, active status check is handled here."""
         user = await self.user_repo.get_by_email(email)
-        if not user or not security.verify_password(password, user.hashed_password):
+        # Run BCrypt even for unknown identities to reduce account-enumeration timing.
+        password_hash = (
+            user.hashed_password
+            if user
+            else security.get_password_hash("invalid-password")
+        )
+        if not user or not security.verify_password(password, password_hash):
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Incorrect email or password.",
@@ -88,19 +99,24 @@ class AuthService:
 
         return user
 
-    async def create_tokens(self, user_id: uuid.UUID) -> Token:
+    async def create_tokens(
+        self, user_id: uuid.UUID, family_id: uuid.UUID | None = None
+    ) -> Token:
         """Creates access and refresh tokens, registering the refresh token in the database."""
         # Generate JWT tokens
         access_token = security.create_access_token(subject=user_id)
         refresh_token_str = security.create_refresh_token(subject=user_id)
 
         # Expiry time for database persistence
-        expires_at = datetime.now(timezone.utc) + timedelta(days=7)
+        expires_at = datetime.now(timezone.utc) + timedelta(
+            days=settings.REFRESH_TOKEN_EXPIRE_DAYS
+        )
 
         # Save refresh token record
         db_token = RefreshToken(
             user_id=user_id,
-            token=refresh_token_str,
+            token_hash=security.token_hash(refresh_token_str),
+            family_id=family_id or uuid.uuid4(),
             expires_at=expires_at,
         )
         self.db.add(db_token)
@@ -126,6 +142,9 @@ class AuthService:
                 refresh_token_str,
                 settings.SECRET_KEY,
                 algorithms=[security.ALGORITHM],
+                audience=settings.JWT_AUDIENCE,
+                issuer=settings.JWT_ISSUER,
+                options={"require": ["exp", "sub", "type", "jti", "iat", "nbf"]},
             )
             token_type = payload.get("type")
             user_id_str = payload.get("sub")
@@ -136,13 +155,19 @@ class AuthService:
             raise credentials_exception
 
         # 2. Verify token is in DB
-        db_token = await self.token_repo.get_by_token(refresh_token_str)
+        db_token = await self.token_repo.get_by_token_hash(
+            security.token_hash(refresh_token_str), for_update=True
+        )
         if not db_token:
             raise credentials_exception
 
         # 3. Check revocation or expiration
         now = datetime.now(timezone.utc)
-        if db_token.revoked_at or db_token.expires_at.replace(tzinfo=timezone.utc) < now:
+        if db_token.revoked_at:
+            await self.token_repo.revoke_family(db_token.family_id, now)
+            await self.db.commit()
+            raise credentials_exception
+        if db_token.expires_at.replace(tzinfo=timezone.utc) < now:
             raise credentials_exception
 
         # 4. Perform session token rotation (revoke old, issue new)
@@ -150,27 +175,13 @@ class AuthService:
         self.db.add(db_token)
 
         # Issue new token set
-        new_access_token = security.create_access_token(subject=user_id)
-        new_refresh_token_str = security.create_refresh_token(subject=user_id)
-        new_expires_at = now + timedelta(days=7)
-
-        new_db_token = RefreshToken(
-            user_id=user_id,
-            token=new_refresh_token_str,
-            expires_at=new_expires_at,
-        )
-        self.db.add(new_db_token)
-        await self.db.commit()
-
-        return Token(
-            access_token=new_access_token,
-            refresh_token=new_refresh_token_str,
-            token_type="bearer",
-        )
+        return await self.create_tokens(user_id, family_id=db_token.family_id)
 
     async def revoke_token(self, refresh_token_str: str) -> None:
         """Revokes an active refresh token to perform user logout."""
-        db_token = await self.token_repo.get_by_token(refresh_token_str)
+        db_token = await self.token_repo.get_by_token_hash(
+            security.token_hash(refresh_token_str), for_update=True
+        )
         if db_token:
             db_token.revoked_at = datetime.now(timezone.utc)
             self.db.add(db_token)
@@ -228,32 +239,26 @@ class AuthService:
                 seeded_roles["Fraud Analyst"].permissions.append(perm)
                 self.db.add(seeded_roles["Fraud Analyst"])
 
-        # 4. Seed Default Admin User
-        admin_email = "admin@fraudinvestigation.com"
-        admin_user = await self.user_repo.get_by_email(admin_email)
-        if not admin_user:
-            hashed_pwd = security.get_password_hash("Admin.123")
+        # 4. Bootstrap an administrator only when credentials are supplied securely.
+        if settings.INITIAL_ADMIN_EMAIL and settings.INITIAL_ADMIN_PASSWORD:
+            admin_user = await self.user_repo.get_by_email(
+                settings.INITIAL_ADMIN_EMAIL
+            )
+        else:
+            admin_user = None
+        if (
+            not admin_user
+            and settings.INITIAL_ADMIN_EMAIL
+            and settings.INITIAL_ADMIN_PASSWORD
+        ):
+            hashed_pwd = security.get_password_hash(settings.INITIAL_ADMIN_PASSWORD)
             admin_user = User(
-                email=admin_email,
+                email=settings.INITIAL_ADMIN_EMAIL,
                 hashed_password=hashed_pwd,
                 full_name="Default System Administrator",
                 is_active=True,
             )
             admin_user.roles.append(seeded_roles["Admin"])
             self.db.add(admin_user)
-
-        # 5. Seed Default Fraud Analyst User
-        analyst_email = "analyst@fraudinvestigation.com"
-        analyst_user = await self.user_repo.get_by_email(analyst_email)
-        if not analyst_user:
-            hashed_pwd = security.get_password_hash("Analyst.123")
-            analyst_user = User(
-                email=analyst_email,
-                hashed_password=hashed_pwd,
-                full_name="Default Fraud Analyst",
-                is_active=True,
-            )
-            analyst_user.roles.append(seeded_roles["Fraud Analyst"])
-            self.db.add(analyst_user)
 
         await self.db.commit()

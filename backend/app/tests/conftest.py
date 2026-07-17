@@ -10,6 +10,7 @@ from sqlalchemy.ext.asyncio import (
 )
 
 from app.main import app
+from app.config.settings import settings
 from app.database.database import get_db_session
 from app.models.base import Base
 
@@ -25,6 +26,11 @@ TestSessionLocal = async_sessionmaker(
     autocommit=False,
     autoflush=False,
 )
+
+settings.ALLOW_PUBLIC_REGISTRATION = True
+settings.INITIAL_ADMIN_EMAIL = "admin@fraudinvestigation.com"
+settings.INITIAL_ADMIN_PASSWORD = "Admin.123"
+settings.BCRYPT_ROUNDS = 4
 
 
 @pytest.fixture(scope="session")

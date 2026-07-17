@@ -19,6 +19,7 @@ logger = get_logger(__name__)
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Startup tasks
+    settings.validate_security()
     logger.info("Initializing database connections...")
     db_ok = await check_database_health()
     if not db_ok:

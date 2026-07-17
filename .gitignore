@@ -10,3 +10,8 @@ backend/.venv/
 *.env
 
 *.env.local
+
+# Node modules
+node_modules/
+.pnpm-store/
+.eslintcache

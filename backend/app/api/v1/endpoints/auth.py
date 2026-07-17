@@ -7,6 +7,7 @@ from app.models.user import User
 from app.schemas.user import UserCreate, UserResponse
 from app.schemas.auth import Token, UserLogin, TokenRefreshRequest
 from app.services.auth import AuthService
+from app.core import security
 
 router = APIRouter()
 
@@ -140,7 +141,9 @@ async def logout(
     auth_service = AuthService(db)
 
     # Pre-fetch user ID from the refresh token for audit log context
-    db_token = await auth_service.token_repo.get_by_token(refresh_in.refresh_token)
+    db_token = await auth_service.token_repo.get_by_token_hash(
+        security.token_hash(refresh_in.refresh_token)
+    )
     user_id = db_token.user_id if db_token else None
 
     await auth_service.revoke_token(refresh_in.refresh_token)

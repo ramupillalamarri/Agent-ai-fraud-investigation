@@ -14,7 +14,14 @@ class Settings(BaseSettings):
     DEBUG: bool = True
     API_V1_STR: str = "/api/v1"
     SECRET_KEY: str = "replace_with_a_secure_random_key_in_production"
-    ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24 * 8  # 8 days
+    JWT_ISSUER: str = "retail-fraud-investigation-api"
+    JWT_AUDIENCE: str = "retail-fraud-investigation-clients"
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 15
+    REFRESH_TOKEN_EXPIRE_DAYS: int = 7
+    BCRYPT_ROUNDS: int = 12
+    ALLOW_PUBLIC_REGISTRATION: bool = False
+    INITIAL_ADMIN_EMAIL: str = ""
+    INITIAL_ADMIN_PASSWORD: str = ""
 
     # CORS Configuration - comma-separated string
     BACKEND_CORS_ORIGINS: str = ""
@@ -71,6 +78,19 @@ class Settings(BaseSettings):
     # Logging config
     LOG_LEVEL: str = "INFO"
     LOG_FORMAT: str = "json"
+
+    def validate_security(self) -> None:
+        """Reject production configurations that would weaken authentication."""
+        if self.APP_ENV.lower() != "production":
+            return
+        if self.SECRET_KEY == "replace_with_a_secure_random_key_in_production" or len(
+            self.SECRET_KEY
+        ) < 32:
+            raise ValueError("SECRET_KEY must be a unique value of at least 32 characters.")
+        if self.BCRYPT_ROUNDS < 12:
+            raise ValueError("BCRYPT_ROUNDS must be at least 12 in production.")
+        if self.DEBUG:
+            raise ValueError("DEBUG must be disabled in production.")
 
 
 # Instantiate settings to be imported where needed
