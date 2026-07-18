@@ -139,6 +139,7 @@ class UpdateInvestigationRequest(BaseModel):
 class InvestigationReportResponse(BaseModel):
     """Schema representing a parsed and aggregated summary Report output."""
     investigation_id: uuid.UUID
+    id: Optional[uuid.UUID] = None
     transaction_id: str
     overall_risk: str
     overall_confidence: float

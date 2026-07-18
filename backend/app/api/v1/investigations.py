@@ -177,6 +177,7 @@ async def run_investigation(
     logger.info("POST /run successfully completed in %d ms.", execution_time_ms)
     
     return {
+        "id": investigation_uuid,
         "investigation_id": investigation_uuid,
         "transaction_id": report.transaction_id,
         "overall_risk": report.overall_risk,
