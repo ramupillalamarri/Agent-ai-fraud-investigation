@@ -1,6 +1,7 @@
 from app.schemas.auth import Token, TokenPayload, UserLogin, TokenRefreshRequest
 from app.schemas.user import UserBase, UserCreate, UserUpdate, UserResponse
 from app.schemas.role import RoleBase, RoleResponse
+from app.schemas.agent import AgentResponse, AgentUpdate
 
 __all__ = [
     "Token",
@@ -13,5 +14,8 @@ __all__ = [
     "UserResponse",
     "RoleBase",
     "RoleResponse",
+    "AgentResponse",
+    "AgentUpdate",
 ]
+
 
