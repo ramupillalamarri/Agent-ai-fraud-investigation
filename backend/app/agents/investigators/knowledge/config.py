@@ -28,3 +28,10 @@ class KnowledgeAgentConfig:
     distance_metric: str = "cosine"
     persist_directory: str = "chromadb_data"
 
+    # Retrieval Engine settings
+    similarity_threshold: float = 0.50
+    metadata_boost: float = 0.15
+    recency_weight: float = 0.10
+    hybrid_search: bool = True
+
+

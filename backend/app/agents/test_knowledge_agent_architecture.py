@@ -52,11 +52,19 @@ def test_knowledge_agent_architecture_di():
     llm_provider = MockLLMProvider()
     
     # DI in retrievers and services
-    chunk_retriever = ChunkRetriever(embedding_provider, vector_store_provider)
-    retrieval_service = RetrievalService(chunk_retriever, llm_provider)
+    from app.agents.investigators.knowledge.retrievers.metadata_retriever import MetadataRetriever
+    from app.agents.investigators.knowledge.retrievers.hybrid_retriever import HybridRetriever
+    from app.agents.investigators.knowledge.retrievers.semantic_retriever import SemanticRetriever
+    
+    semantic_retriever = SemanticRetriever(embedding_provider, vector_store_provider)
+    metadata_retriever = MetadataRetriever(embedding_provider, vector_store_provider)
+    hybrid_retriever = HybridRetriever(semantic_retriever, metadata_retriever)
+    retrieval_service = RetrievalService(config, hybrid_retriever, llm_provider)
+
     
     # Inject service into KnowledgeAgent
     agent = KnowledgeAgent(config=config, retrieval_service=retrieval_service)
+
     
     # Verify health check succeeds
     assert agent.health_check() is True
