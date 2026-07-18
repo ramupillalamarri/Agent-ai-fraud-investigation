@@ -37,3 +37,9 @@ class MerchantAgentConfig:
     important_profile_fields: Set[str] = field(default_factory=lambda: {"merchant_registration_date", "merchant_category", "merchant_verified", "merchant_status"})
     active_merchant_statuses: Set[str] = field(default_factory=lambda: {"ACTIVE", "VERIFIED"})
     invalid_merchant_categories: Set[str] = field(default_factory=lambda: {"unknown", "n/a", "none"})
+
+    # Merchant History Analyzer thresholds
+    high_refund_rate_threshold: float = 0.15
+    high_dispute_rate_threshold: float = 0.05
+    inactivity_days_threshold: int = 180
+    min_established_transactions: int = 100
