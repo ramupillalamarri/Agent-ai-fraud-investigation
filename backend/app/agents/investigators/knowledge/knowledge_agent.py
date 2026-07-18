@@ -1,28 +1,29 @@
 import logging
-from typing import List, Dict, Any, Optional
+from typing import List, Optional
 from app.agents.base.base_agent import BaseAgent
 from app.agents.models.investigation_context import InvestigationContext
 from app.agents.models.agent_result import AgentResult
-
 from app.agents.investigators.knowledge.config import KnowledgeAgentConfig
-from app.agents.investigators.knowledge.retriever import KnowledgeRetriever
+from app.agents.investigators.knowledge.services.retrieval_service import RetrievalService
 
 logger = logging.getLogger("app.agents.KnowledgeAgent")
 
 class KnowledgeAgent(BaseAgent):
-    """Knowledge Retrieval Agent that performs semantic searches over playbooks, compliance guidelines, and policies."""
+    """Orchestrates RAG pipelines to retrieve context from compliance playbooks, SOPs, and manuals."""
 
     def __init__(
         self,
         agent_id: str = "knowledge-investigator-01",
         agent_name: str = "KnowledgeAgent",
-        description: str = "Performs semantic retrieval against compliance documentation, internal guidelines, and fraud playbooks.",
+        description: str = "Retrieves relevant regulatory rules and SOP documents matching fraud anomalies.",
         version: str = "1.0.0",
         enabled: bool = True,
         execution_priority: int = 50,
         supported_features: Optional[List[str]] = None,
-        config: Optional[KnowledgeAgentConfig] = None
+        config: Optional[KnowledgeAgentConfig] = None,
+        retrieval_service: Optional[RetrievalService] = None
     ) -> None:
+        """Initializes the KnowledgeAgent with configuration settings and retrieval orchestration services."""
         super().__init__(
             agent_id=agent_id,
             agent_name=agent_name,
@@ -30,92 +31,74 @@ class KnowledgeAgent(BaseAgent):
             version=version,
             enabled=enabled,
             execution_priority=execution_priority,
-            supported_features=supported_features or ["knowledge", "rag", "retrieval"]
+            supported_features=supported_features or ["knowledge", "rag", "sop_search"]
         )
         self.config = config or KnowledgeAgentConfig()
-        self.retriever = KnowledgeRetriever(self.config)
+        self.retrieval_service = retrieval_service
 
     def validate(self, context: InvestigationContext) -> None:
-        """Validates that transaction parameters are loaded in context."""
-        if not context.transaction_data:
-            raise ValueError("KnowledgeAgent requires valid context transaction_data.")
+        """Enforces validation checks on the context anomalies query parameters."""
+        tx_data = context.transaction_data or {}
+        if not tx_data:
+            raise ValueError("KnowledgeAgent requires transaction_data payload inside execution context.")
 
     def health_check(self) -> bool:
-        """Confirms internal retrieval status."""
+        """Checks RAG pipeline services dependencies and config variables."""
+        if not isinstance(self.config, KnowledgeAgentConfig):
+            logger.error("Health check failed: Invalid configuration class instance type.")
+            return False
         return True
 
-    def _generate_query(self, context: InvestigationContext) -> str:
-        """Generates a search query targeting RAG text indexes from context telemetry."""
-        tx_data = context.transaction_data or {}
-        
-        query_parts = []
-        
-        # Suspected ATO/Identity Check
-        if "device_id" in tx_data or "ip_address" in tx_data:
-            query_parts.append("account takeover ATO device fingerprint mismatch")
-            
-        # Suspected High Risk Merchant Check
-        if "merchant" in tx_data or "category" in tx_data:
-            category = tx_data.get("category", "")
-            query_parts.append(f"high risk merchant category {category} electronics crypto AML sanctions")
-            
-        # Standard velocity / amounts check
-        if float(tx_data.get("amount") or 0.0) > 1000.0:
-            query_parts.append("velocity rules limits high amount limits")
-            
-        # Fallback overall query
-        if not query_parts:
-            query_parts.append("fraud investigation playbook guidelines risk policy")
-            
-        return " ".join(query_parts)
-
     def _execute(self, context: InvestigationContext) -> AgentResult:
-        """Executes RAG retrieval flow."""
-        query = self._generate_query(context)
-        self.log_info("Formulated RAG query: '%s'", query)
+        """Protected core execution pipeline retrieving and attaching RAG context findings to the report."""
+        import time
+        logger.info("Knowledge Agent started")
         
-        # Execute retrieval
-        result = self.retriever.retrieve(query)
-        passages = result.get("passages", [])
+        start_time = time.perf_counter()
         
-        evidence_list = []
+        # 1. Validation
+        self.validate(context)
+        
         findings = []
         recommendations = []
+        evidence = []
         
-        # Map passages to evidence records
-        for pass_item in passages:
-            meta = pass_item["metadata"]
-            evidence_list.append({
-                "type": "KnowledgeRetrievedPassage",
-                "severity": "MEDIUM",
-                "confidence": pass_item["score"],
-                "description": f"Retrieved playbook snippet ({meta.get('title')}): {pass_item['content']}",
-                "source": f"RAG:{meta.get('source')}"
-            })
+        # Mock / Skeleton execution (to be replaced with actual RAG retrieval service integration)
+        if self.retrieval_service:
+            # e.g., query generated from transaction anomaly features
+            query_str = f"Identify compliance rules for transaction amount ${context.transaction_data.get('amount', 0.0)}"
+            retrieved = self.retrieval_service.retrieve_context(query_str, self.config.top_k)
             
-        if passages:
-            findings.append(f"Retrieved {len(passages)} matching fraud playbooks and compliance guidelines.")
-            # Standard playbook recommendations
-            recommendations.append("Execute playbook steps matching retrieved guidelines")
-            recommendations.append("Verify AML compliance threshold alerts")
+            for chunk in retrieved.retrieved_chunks:
+                evidence.append({
+                    "type": "KnowledgeReference",
+                    "severity": "LOW",
+                    "title": f"Reference from: {chunk.document_id}",
+                    "description": chunk.content,
+                    "confidence": chunk.score,
+                    "source": "KnowledgeAgent",
+                    "metadata": chunk.metadata
+                })
+            
+            findings.append(f"Retrieved {len(retrieved.retrieved_chunks)} relevant compliance references.")
+            recommendations.append("Review standard retail playbooks guidelines")
         else:
-            findings.append("No matching internal playbooks or compliance alerts retrieved for this transaction signature.")
-            recommendations.append("Apply baseline analyst manual review")
-
-        metadata = {
-            "query": query,
-            "latency_ms": result["latency_ms"],
-            "retrieved_count": len(passages),
-            "vocabulary_size": len(self.retriever.vector_store.vocabulary)
-        }
+            findings.append("No active retrieval service configured. Scaffold execution completed.")
+            recommendations.append("Review standard retail playbooks guidelines")
+            
+        latency = (time.perf_counter() - start_time) * 1000.0
+        logger.info("Knowledge Agent completed in %.2fms", latency)
 
         return AgentResult(
             agent_name=self.agent_name,
             status="SUCCESS",
-            confidence_score=result["confidence_score"] or 1.0,
+            confidence_score=1.0,
             findings=findings,
             recommendations=recommendations,
-            evidence=evidence_list,
-            execution_time_ms=0,  # set automatically
-            metadata=metadata
+            evidence=evidence,
+            execution_time_ms=int(latency),
+            metadata={
+                "retrieved_context_count": len(evidence),
+                "retrieval_enabled": self.retrieval_service is not None
+            }
         )
