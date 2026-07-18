@@ -30,3 +30,10 @@ class MerchantAgentConfig:
     # Velocity parameters
     max_transaction_count_per_hour: int = 100
     max_amount_per_transaction: float = 10000.0
+
+    # Merchant Profile Analyzer thresholds
+    recently_registered_days: int = 30
+    required_profile_fields: Set[str] = field(default_factory=lambda: {"merchant_id", "merchant_name", "merchant_country"})
+    important_profile_fields: Set[str] = field(default_factory=lambda: {"merchant_registration_date", "merchant_category", "merchant_verified", "merchant_status"})
+    active_merchant_statuses: Set[str] = field(default_factory=lambda: {"ACTIVE", "VERIFIED"})
+    invalid_merchant_categories: Set[str] = field(default_factory=lambda: {"unknown", "n/a", "none"})
