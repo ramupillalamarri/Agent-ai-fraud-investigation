@@ -10,3 +10,11 @@ class KnowledgeAgentConfig:
     top_k: int = 5
     reranking: bool = True
     cache: bool = True
+
+    # Ingestion pipeline settings
+    supported_formats: list[str] = ("pdf", "md", "txt", "html", "json", "docx")
+    max_file_size_bytes: int = 10 * 1024 * 1024  # 10 MB
+    allowed_categories: list[str] = (
+        "fraud_playbooks", "compliance", "pci_dss", "aml", 
+        "merchant_policies", "historical_cases", "internal_guidelines"
+    )
