@@ -211,6 +211,10 @@ class AuthService:
             ("dashboard:view", "Ability to view the main intelligence dashboard."),
             ("fraud:investigate", "Ability to triage transactions and investigate fraud cases."),
             ("reports:generate", "Ability to generate and export analytics reports."),
+            ("investigation:read", "Ability to view investigations."),
+            ("investigation:write", "Ability to execute/create investigations."),
+            ("investigation:update", "Ability to edit/update investigations."),
+            ("investigation:delete", "Ability to delete investigations."),
         ]
 
         seeded_permissions = {}
@@ -228,11 +232,14 @@ class AuthService:
                 seeded_roles["Admin"].permissions.append(perm)
                 self.db.add(seeded_roles["Admin"])
 
-        # Fraud Analyst receives dashboard:view, fraud:investigate, reports:generate
+        # Fraud Analyst receives dashboard:view, fraud:investigate, reports:generate, investigation:read, etc.
         analyst_perms = [
             seeded_permissions["dashboard:view"],
             seeded_permissions["fraud:investigate"],
             seeded_permissions["reports:generate"],
+            seeded_permissions["investigation:read"],
+            seeded_permissions["investigation:write"],
+            seeded_permissions["investigation:update"],
         ]
         for perm in analyst_perms:
             if perm not in seeded_roles["Fraud Analyst"].permissions:

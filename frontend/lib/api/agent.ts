@@ -37,6 +37,24 @@ export const agentApi = {
           priority: 30,
           enabled: true,
           type: "Relational Network"
+        },
+        {
+          id: "merchant-investigator-01",
+          name: "MerchantInvestigationAgent",
+          description: "Audits merchant category, chargeback rates, and transaction velocity profiles.",
+          version: "1.0.0",
+          priority: 40,
+          enabled: true,
+          type: "Merchant Risk"
+        },
+        {
+          id: "knowledge-agent-01",
+          name: "KnowledgeAgent",
+          description: "Queries custom internal knowledge bases and RAG playbooks to trace context matches.",
+          version: "1.0.0",
+          priority: 50,
+          enabled: true,
+          type: "RAG & Playbook Retrieval"
         }
       ];
     }

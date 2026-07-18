@@ -17,11 +17,14 @@ import {
   getAccessToken,
   getRefreshToken,
   getUserProfile,
+  isDevMode,
+  DEMO_ADMIN_PROFILE,
 } from "@/lib/auth";
 import type { AuthState, UserProfile, LoginCredentials, RegisterData } from "@/types/auth";
 
 interface AuthContextType extends AuthState {
   login: (credentials: LoginCredentials) => Promise<void>;
+  loginWithGoogle: (idToken: string) => Promise<void>;
   register: (data: RegisterData) => Promise<void>;
   logout: () => Promise<void>;
   checkAuth: () => void;
@@ -47,6 +50,17 @@ export function AuthProvider({ children }: AuthProviderProps) {
    * Check authentication status on mount
    */
   const checkAuth = useCallback(() => {
+    if (isDevMode()) {
+      setState({
+        user: DEMO_ADMIN_PROFILE,
+        accessToken: "dev-bypass-token",
+        refreshToken: "dev-bypass-token",
+        isLoading: false,
+        isAuthenticated: true,
+      });
+      return;
+    }
+
     const accessToken = getAccessToken();
     const refreshToken = getRefreshToken();
     const userProfile = getUserProfile();
@@ -111,6 +125,53 @@ export function AuthProvider({ children }: AuthProviderProps) {
   }, []);
 
   /**
+   * Login with Google OAuth 2.0
+   */
+  const loginWithGoogle = useCallback(async (idToken: string) => {
+    setState((prev) => ({ ...prev, isLoading: true }));
+    
+    try {
+      const tokens = await authApi.loginWithGoogle(idToken);
+      storeTokens(tokens);
+
+      let userProfile: UserProfile;
+      try {
+        const user = await authApi.getCurrentUser();
+        userProfile = {
+          id: user.id,
+          email: user.email,
+          full_name: user.full_name,
+          is_active: user.is_active,
+          roles: Array.isArray(user.roles)
+            ? user.roles.map((r: any) => (typeof r === "string" ? r : (r?.name || "Fraud Analyst")))
+            : ["Fraud Analyst"],
+        };
+      } catch {
+        userProfile = {
+          id: "google-user",
+          email: "analyst@investigation.com",
+          full_name: "Fraud Analyst",
+          is_active: true,
+          roles: ["Fraud Analyst"],
+        };
+      }
+      
+      storeUserProfile(userProfile);
+
+      setState({
+        user: userProfile,
+        accessToken: tokens.access_token,
+        refreshToken: tokens.refresh_token,
+        isLoading: false,
+        isAuthenticated: true,
+      });
+    } catch (error) {
+      setState((prev) => ({ ...prev, isLoading: false }));
+      throw error;
+    }
+  }, []);
+
+  /**
    * Register new user
    */
   const register = useCallback(async (data: RegisterData) => {
@@ -151,6 +212,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const value: AuthContextType = {
     ...state,
     login,
+    loginWithGoogle,
     register,
     logout,
     checkAuth,

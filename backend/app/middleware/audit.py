@@ -91,7 +91,7 @@ class AuditLogMiddleware(BaseHTTPMiddleware):
                 action = f"api_access:get:{path}" if request.method.lower() == "get" else f"api_access:{request.method.lower()}:{path}"
                 entity_name = "api"
                 entity_id = None
-                user_id = authenticated_user.id if authenticated_user else None
+                user_id = getattr(request.state, "user_id", None)
                 old_values = None
                 new_values = {
                     "method": request.method,
@@ -103,8 +103,8 @@ class AuditLogMiddleware(BaseHTTPMiddleware):
                 entity_name = getattr(request.state, "audit_entity_name", "api")
                 entity_id = getattr(request.state, "audit_entity_id", None)
                 user_id = getattr(request.state, "audit_user_id", None)
-                if not user_id and authenticated_user:
-                    user_id = authenticated_user.id
+                if not user_id:
+                    user_id = getattr(request.state, "user_id", None)
                 old_values = getattr(request.state, "audit_old_values", None)
                 new_values = getattr(request.state, "audit_new_values", None)
                 if new_values is None:

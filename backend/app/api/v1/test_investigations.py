@@ -43,6 +43,9 @@ async def override_get_db_session():
 def test_api_endpoints():
     print("=== Testing FastAPI REST API Endpoints ===")
     
+    # Save original dependency overrides to prevent test pollution
+    original_overrides = app.dependency_overrides.copy()
+    
     # Initialize DB schema
     asyncio.run(init_test_db())
     
@@ -289,6 +292,9 @@ def test_api_endpoints():
     assert deleted_data["status"] == "DELETED"
     print(f"Post-delete status is: {deleted_data['status']}")
     print("  ✓ Success: Investigation soft-deleted successfully.")
+
+    # Restore original dependency overrides to prevent test pollution
+    app.dependency_overrides = original_overrides
 
     print("\n=== All FastAPI REST API Endpoints Passed Successfully! ===")
 

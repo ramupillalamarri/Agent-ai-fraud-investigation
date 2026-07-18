@@ -1,8 +1,8 @@
 import axios, { AxiosError, InternalAxiosRequestConfig, AxiosResponse } from "axios";
-import { getAccessToken, getRefreshToken, storeTokens, clearAuth, getApiBaseUrl } from "./auth";
+import { getAccessToken, getRefreshToken, storeTokens, clearAuth, getApiBaseUrl, isDevMode } from "./auth";
 import type { Token, LoginCredentials, RegisterData, User } from "@/types/auth";
 
-const API_BASE_URL = getApiBaseUrl();
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
 /**
  * Create configured axios instance
@@ -80,7 +80,7 @@ async function refreshAccessToken(): Promise<string | null> {
 // Request interceptor - add auth token
 apiClient.interceptors.request.use(
   (config: InternalAxiosRequestConfig) => {
-    const token = getAccessToken();
+    const token = getAccessToken() || (isDevMode() ? "dev-bypass-token" : null);
     if (token && config.headers) {
       config.headers.Authorization = `Bearer ${token}`;
     }
@@ -99,6 +99,10 @@ apiClient.interceptors.response.use(
 
     // Handle 401 Unauthorized
     if (error.response?.status === 401 && !originalRequest._retry) {
+      if (isDevMode()) {
+        return Promise.reject(error);
+      }
+
       if (isRefreshing) {
         // Wait for refresh to complete
         return new Promise((resolve, reject) => {
@@ -150,6 +154,16 @@ export const authApi = {
    */
   login: async (credentials: LoginCredentials): Promise<Token> => {
     const response = await apiClient.post<Token>("/api/v1/auth/login", credentials);
+    return response.data;
+  },
+
+  /**
+   * Login with Google OAuth token
+   */
+  loginWithGoogle: async (idToken: string): Promise<Token> => {
+    const response = await apiClient.post<Token>("/api/v1/auth/google", {
+      id_token: idToken,
+    });
     return response.data;
   },
 

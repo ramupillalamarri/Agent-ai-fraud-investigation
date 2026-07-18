@@ -18,73 +18,73 @@ import { Progress } from "@/components/ui/progress";
 import { AreaChart } from "@/components/charts/area-chart";
 import { BarChart } from "@/components/charts/bar-chart";
 import { DonutChart } from "@/components/charts/donut-chart";
-import {
-  FRAUD_TREND_30D,
-  AGENT_PERFORMANCE,
-  TX_VOLUME_WEEKLY,
-  TOP_FRAUD_CATEGORIES,
-  TOP_MERCHANTS_LOSS,
-} from "@/lib/mock-data";
+import { useAnalytics } from "@/hooks/useAnalytics";
+import { LoadingSpinner, ErrorCard } from "@/components/shared/feedback";
 import { cn } from "@/lib/utils";
 
 const DATE_RANGES = ["7d", "30d", "90d", "12m"] as const;
 type DateRange = (typeof DATE_RANGES)[number];
 
-const SUMMARY_STATS = [
-  {
-    label: "Detection Rate",
-    value: "98.1%",
-    delta: "+0.4%",
-    up: true,
-    icon: Target,
-    color: "text-emerald-400",
-    bg: "bg-emerald-400/10",
-    description: "vs prior period",
-  },
-  {
-    label: "Avg. Response Time",
-    value: "1.8 hrs",
-    delta: "-12 min",
-    up: false,
-    icon: Clock,
-    color: "text-blue-400",
-    bg: "bg-blue-400/10",
-    description: "to first action",
-  },
-  {
-    label: "Cases Closed",
-    value: "847",
-    delta: "+127",
-    up: true,
-    icon: Activity,
-    color: "text-violet-400",
-    bg: "bg-violet-400/10",
-    description: "this period",
-  },
-  {
-    label: "False Positive Rate",
-    value: "1.9%",
-    delta: "-0.3%",
-    up: false,
-    icon: BarChart3,
-    color: "text-amber-400",
-    bg: "bg-amber-400/10",
-    description: "model accuracy",
-  },
-];
+const ICON_MAP: Record<string, any> = {
+  "Detection Rate": Target,
+  "Avg. Response Time": Clock,
+  "Cases Closed": Activity,
+  "False Positive Rate": BarChart3,
+};
 
-const AGENT_METRICS = [
-  { name: "FraudDetect v2.1", type: "Card Fraud", accuracy: 98.1, cases: 1240, status: "active" },
-  { name: "ATO Sentinel", type: "Account Takeover", accuracy: 96.4, cases: 384, status: "active" },
-  { name: "Graph Analyzer", type: "Network Analysis", accuracy: 94.8, cases: 127, status: "active" },
-  { name: "Wire Guardian", type: "Wire Fraud", accuracy: 97.2, cases: 89, status: "active" },
-  { name: "Identity Shield", type: "Synthetic ID", accuracy: 93.1, cases: 203, status: "training" },
-];
+const COLOR_MAP: Record<string, { color: string; bg: string }> = {
+  "Detection Rate": { color: "text-emerald-400", bg: "bg-emerald-400/10" },
+  "Avg. Response Time": { color: "text-blue-400", bg: "bg-blue-400/10" },
+  "Cases Closed": { color: "text-violet-400", bg: "bg-violet-400/10" },
+  "False Positive Rate": { color: "text-amber-400", bg: "bg-amber-400/10" },
+};
 
 export default function AnalyticsPage() {
   const [dateRange, setDateRange] = useState<DateRange>("30d");
+  const { data, loading, error, refetch } = useAnalytics();
 
-  const trendData = dateRange === "7d" ? FRAUD_TREND_30D.slice(-7) : dateRange === "90d" ? [...FRAUD_TREND_30D, ...FRAUD_TREND_30D, ...FRAUD_TREND_30D].slice(0, 30) : FRAUD_TREND_30D;
+  if (loading) {
+    return (
+      <div className="flex h-[80vh] items-center justify-center">
+        <LoadingSpinner message="Querying live AI analytics database registry..." />
+      </div>
+    );
+  }
+
+  if (error || !data) {
+    return (
+      <div className="flex h-[80vh] items-center justify-center p-6">
+        <ErrorCard 
+          message={error || "Analytics could not be loaded."} 
+          onRetry={refetch} 
+        />
+      </div>
+    );
+  }
+
+  const {
+    summaryStats = [],
+    fraudTrend30d = [],
+    topFraudCategories = [],
+    topMerchantsLoss = [],
+    txVolumeWeekly = [],
+    agentMetrics = [],
+    agentPerformance = []
+  } = data;
+
+  const trendData = dateRange === "7d" ? fraudTrend30d.slice(-7) : dateRange === "90d" ? [...fraudTrend30d, ...fraudTrend30d, ...fraudTrend30d].slice(0, 30) : fraudTrend30d;
+
+  const handleExport = () => {
+    const jsonString = `data:text/json;charset=utf-8,${encodeURIComponent(
+      JSON.stringify(data, null, 2)
+    )}`;
+    const downloadAnchor = document.createElement("a");
+    downloadAnchor.setAttribute("href", jsonString);
+    downloadAnchor.setAttribute("download", `analytics_report_${new Date().toISOString().split('T')[0]}.json`);
+    document.body.appendChild(downloadAnchor);
+    downloadAnchor.click();
+    downloadAnchor.remove();
+  };
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -111,11 +111,11 @@ export default function AnalyticsPage() {
               </button>
             ))}
           </div>
-          <Button variant="outline" size="sm" className="gap-1.5">
+          <Button variant="outline" size="sm" className="gap-1.5" onClick={() => refetch()}>
             <RefreshCw className="h-3.5 w-3.5" />
             Refresh
           </Button>
-          <Button variant="outline" size="sm" className="gap-1.5">
+          <Button variant="outline" size="sm" className="gap-1.5" onClick={handleExport}>
             <Download className="h-3.5 w-3.5" />
             Export
           </Button>
@@ -124,37 +124,41 @@ export default function AnalyticsPage() {
 
       {/* Summary stats */}
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        {SUMMARY_STATS.map((s) => (
-          <Card key={s.label} className="gradient-border">
-            <CardContent className="pt-4">
-              <div className="flex items-start justify-between">
-                <div className={cn("flex h-9 w-9 items-center justify-center rounded-lg", s.bg)}>
-                  <s.icon className={cn("h-4 w-4", s.color)} />
+        {summaryStats.map((s: any) => {
+          const Icon = ICON_MAP[s.label] || Target;
+          const styles = COLOR_MAP[s.label] || { color: "text-indigo-400", bg: "bg-indigo-400/10" };
+          return (
+            <Card key={s.label} className="gradient-border bg-white border border-slate-100 shadow-sm rounded-xl">
+              <CardContent className="pt-4">
+                <div className="flex items-start justify-between">
+                  <div className={cn("flex h-9 w-9 items-center justify-center rounded-lg", styles.bg)}>
+                    <Icon className={cn("h-4 w-4", styles.color)} />
+                  </div>
+                  <div className={cn("flex items-center gap-0.5 text-xs font-medium", s.up ? "text-emerald-500" : "text-rose-500")}>
+                    {s.up ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />}
+                    {s.delta}
+                  </div>
                 </div>
-                <div className={cn("flex items-center gap-0.5 text-xs font-medium", s.up ? "text-emerald-400" : "text-red-400")}>
-                  {s.up ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />}
-                  {s.delta}
+                <div className="mt-3">
+                  <p className="text-2xl font-bold tabular-nums text-slate-800">{s.value}</p>
+                  <p className="mt-0.5 text-xs font-semibold text-slate-700">{s.label}</p>
+                  <p className="text-[11px] text-slate-400">{s.description}</p>
                 </div>
-              </div>
-              <div className="mt-3">
-                <p className="text-2xl font-bold tabular-nums">{s.value}</p>
-                <p className="mt-0.5 text-xs text-muted-foreground">{s.label}</p>
-                <p className="text-[11px] text-muted-foreground/60">{s.description}</p>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
+              </CardContent>
+            </Card>
+          );
+        })}
       </div>
 
       {/* Main trend chart */}
-      <Card>
-        <CardHeader className="pb-2">
+      <Card className="bg-white border border-slate-100 shadow-sm rounded-xl overflow-hidden">
+        <CardHeader className="pb-2 bg-slate-50/50">
           <div className="flex items-center justify-between">
             <div>
-              <CardTitle className="text-base">Fraud Detection Timeline</CardTitle>
-              <CardDescription>Cases detected vs. escalated — {dateRange} window</CardDescription>
+              <CardTitle className="text-base font-bold text-slate-800">Fraud Detection Timeline</CardTitle>
+              <CardDescription className="text-xs text-slate-500">Cases detected vs. escalated — {dateRange} window</CardDescription>
             </div>
-            <div className="flex items-center gap-3 text-xs text-muted-foreground">
+            <div className="flex items-center gap-3 text-xs text-slate-500 font-medium">
               <span className="flex items-center gap-1.5">
                 <span className="h-2 w-2 rounded-full bg-blue-500" />
                 Detected
@@ -166,7 +170,7 @@ export default function AnalyticsPage() {
             </div>
           </div>
         </CardHeader>
-        <CardContent>
+        <CardContent className="pt-4">
           <AreaChart data={trendData} primaryLabel="Detected" secondaryLabel="Escalated" />
         </CardContent>
       </Card>
@@ -174,15 +178,15 @@ export default function AnalyticsPage() {
       {/* Row 2: Donut + Horizontal bar + Bar */}
       <div className="grid gap-6 lg:grid-cols-3">
         {/* Fraud by type donut */}
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-base">Fraud by Category</CardTitle>
-            <CardDescription>Distribution across all cases</CardDescription>
+        <Card className="bg-white border border-slate-100 shadow-sm rounded-xl overflow-hidden">
+          <CardHeader className="pb-2 bg-slate-50/50">
+            <CardTitle className="text-base font-bold text-slate-800">Fraud by Category</CardTitle>
+            <CardDescription className="text-xs text-slate-500">Distribution across all cases</CardDescription>
           </CardHeader>
-          <CardContent>
+          <CardContent className="pt-4 flex justify-center">
             <DonutChart
-              data={TOP_FRAUD_CATEGORIES}
-              centerLabel="1,847"
+              data={topFraudCategories}
+              centerLabel={data.summaryStats[2]?.value || "0"}
               centerSublabel="total cases"
               size={200}
             />
@@ -190,14 +194,14 @@ export default function AnalyticsPage() {
         </Card>
 
         {/* Loss by merchant category */}
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-base">Loss by Merchant Category</CardTitle>
-            <CardDescription>Estimated financial exposure ($)</CardDescription>
+        <Card className="bg-white border border-slate-100 shadow-sm rounded-xl overflow-hidden">
+          <CardHeader className="pb-2 bg-slate-50/50">
+            <CardTitle className="text-base font-bold text-slate-800">Loss by Merchant Category</CardTitle>
+            <CardDescription className="text-xs text-slate-500">Estimated financial exposure ($)</CardDescription>
           </CardHeader>
-          <CardContent>
+          <CardContent className="pt-4">
             <BarChart
-              data={TOP_MERCHANTS_LOSS.map((m) => ({
+              data={topMerchantsLoss.map((m: any) => ({
                 ...m,
                 label: m.label.split(" ")[0],
                 value: Math.round(m.value / 1000),
@@ -208,13 +212,13 @@ export default function AnalyticsPage() {
         </Card>
 
         {/* Weekly flagged volume */}
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-base">Flagged Volume by Day</CardTitle>
-            <CardDescription>Transactions flagged this week</CardDescription>
+        <Card className="bg-white border border-slate-100 shadow-sm rounded-xl overflow-hidden">
+          <CardHeader className="pb-2 bg-slate-50/50">
+            <CardTitle className="text-base font-bold text-slate-800">Flagged Volume by Day</CardTitle>
+            <CardDescription className="text-xs text-slate-500">Transactions flagged this week</CardDescription>
           </CardHeader>
-          <CardContent>
-            <BarChart data={TX_VOLUME_WEEKLY} />
+          <CardContent className="pt-4">
+            <BarChart data={txVolumeWeekly} />
           </CardContent>
         </Card>
       </div>
@@ -222,14 +226,14 @@ export default function AnalyticsPage() {
       {/* Row 3: Agent performance */}
       <div className="grid gap-6 lg:grid-cols-2">
         {/* Agent performance chart */}
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-base">AI Model Accuracy (7 Days)</CardTitle>
-            <CardDescription>FraudDetect v2.1 detection confidence</CardDescription>
+        <Card className="bg-white border border-slate-100 shadow-sm rounded-xl overflow-hidden">
+          <CardHeader className="pb-2 bg-slate-50/50">
+            <CardTitle className="text-base font-bold text-slate-800">AI Model Accuracy (7 Days)</CardTitle>
+            <CardDescription className="text-xs text-slate-500">FraudDetect v2.1 detection confidence</CardDescription>
           </CardHeader>
-          <CardContent>
+          <CardContent className="pt-4">
             <AreaChart
-              data={AGENT_PERFORMANCE}
+              data={agentPerformance}
               showSecondary={false}
               primaryLabel="Accuracy %"
             />
@@ -237,48 +241,48 @@ export default function AnalyticsPage() {
         </Card>
 
         {/* Agent table */}
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-base">Agent Performance Summary</CardTitle>
-            <CardDescription>All active detection agents</CardDescription>
+        <Card className="bg-white border border-slate-100 shadow-sm rounded-xl overflow-hidden">
+          <CardHeader className="pb-2 bg-slate-50/50">
+            <CardTitle className="text-base font-bold text-slate-800">Agent Performance Summary</CardTitle>
+            <CardDescription className="text-xs text-slate-500">All active detection agents</CardDescription>
           </CardHeader>
-          <CardContent className="space-y-4 pt-2">
-            {AGENT_METRICS.map((agent) => (
+          <CardContent className="space-y-4 pt-4">
+            {agentMetrics.map((agent: any) => (
               <div key={agent.name} className="space-y-1.5">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
-                    <div className="flex h-6 w-6 items-center justify-center rounded-md bg-primary/10">
-                      <Cpu className="h-3 w-3 text-primary" />
+                    <div className="flex h-6 w-6 items-center justify-center rounded-md bg-indigo-50 text-indigo-700">
+                      <Cpu className="h-3 w-3" />
                     </div>
                     <div>
-                      <p className="text-xs font-medium leading-none">{agent.name}</p>
-                      <p className="text-[10px] text-muted-foreground">{agent.type}</p>
+                      <p className="text-xs font-semibold leading-none text-slate-800">{agent.name}</p>
+                      <p className="text-[10px] text-slate-400 mt-0.5">{agent.type}</p>
                     </div>
                   </div>
                   <div className="flex items-center gap-3">
-                    <span className="text-xs text-muted-foreground">{agent.cases.toLocaleString()} cases</span>
+                    <span className="text-xs text-slate-400">{agent.cases.toLocaleString()} cases</span>
                     <span
                       className={cn(
-                        "rounded-full px-1.5 py-0.5 text-[10px] font-semibold",
+                        "rounded-full px-1.5 py-0.5 text-[10px] font-semibold border",
                         agent.status === "active"
-                          ? "bg-emerald-500/15 text-emerald-400"
-                          : "bg-amber-500/15 text-amber-400",
+                          ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                          : "bg-amber-50 text-amber-700 border-amber-200",
                       )}
                     >
                       {agent.status}
                     </span>
-                    <span className="w-10 text-right text-xs font-semibold tabular-nums">{agent.accuracy}%</span>
+                    <span className="w-10 text-right text-xs font-bold tabular-nums text-slate-800">{agent.accuracy}%</span>
                   </div>
                 </div>
                 <Progress
                   value={agent.accuracy}
                   max={100}
-                  className="h-1.5"
+                  className="h-1.5 bg-slate-100"
                   indicatorClassName={
                     agent.accuracy >= 97
                       ? "bg-emerald-500"
                       : agent.accuracy >= 94
-                        ? "bg-blue-500"
+                        ? "bg-indigo-600"
                         : "bg-amber-500"
                   }
                 />
@@ -291,15 +295,15 @@ export default function AnalyticsPage() {
       {/* Resolution metrics */}
       <div className="grid gap-4 sm:grid-cols-3">
         {[
-          { label: "Mean Time to Detect", value: "4.2 min", sub: "from transaction to flag", color: "text-blue-400" },
-          { label: "Mean Time to Investigate", value: "6.8 hrs", sub: "from flag to case open", color: "text-amber-400" },
-          { label: "Mean Time to Resolve", value: "2.1 days", sub: "from open to closed", color: "text-emerald-400" },
+          { label: "Mean Time to Detect", value: "4.2 min", sub: "from transaction to flag", color: "text-indigo-600" },
+          { label: "Mean Time to Investigate", value: "6.8 hrs", sub: "from flag to case open", color: "text-amber-600" },
+          { label: "Mean Time to Resolve", value: "2.1 days", sub: "from open to closed", color: "text-emerald-600" },
         ].map((m) => (
-          <Card key={m.label} className="text-center">
+          <Card key={m.label} className="text-center bg-white border border-slate-100 shadow-sm rounded-xl">
             <CardContent className="py-6">
-              <p className={cn("text-3xl font-bold tabular-nums", m.color)}>{m.value}</p>
-              <p className="mt-1 text-sm font-medium">{m.label}</p>
-              <p className="text-xs text-muted-foreground">{m.sub}</p>
+              <p className={cn("text-3xl font-extrabold tabular-nums", m.color)}>{m.value}</p>
+              <p className="mt-1 text-sm font-bold text-slate-800">{m.label}</p>
+              <p className="text-xs text-slate-400 mt-0.5">{m.sub}</p>
             </CardContent>
           </Card>
         ))}

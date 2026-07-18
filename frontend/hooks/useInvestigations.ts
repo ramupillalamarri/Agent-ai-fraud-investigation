@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { investigationApi, InvestigationFilterParams } from "../lib/api/investigation";
+import { executeApiRequest } from "../lib/api-manager";
 
 export function useInvestigations(initialParams: InvestigationFilterParams = {}) {
   const [investigations, setInvestigations] = useState<any[]>([]);
@@ -8,14 +9,22 @@ export function useInvestigations(initialParams: InvestigationFilterParams = {})
   const [error, setError] = useState<string | null>(null);
   const [params, setParams] = useState<InvestigationFilterParams>(initialParams);
 
-  const fetchInvestigations = useCallback(async () => {
+  const fetchInvestigations = useCallback(async (options?: { forceRefetch?: boolean }) => {
     setLoading(true);
     setError(null);
     try {
-      const data = await investigationApi.list(params);
+      const ttl = options?.forceRefetch ? 0 : 15000; // 15s cache TTL
+      const cacheKey = `inv-list-${JSON.stringify(params)}`;
+      
+      const data = await executeApiRequest(
+        (cfg) => investigationApi.list(params, cfg),
+        cacheKey,
+        { ttl }
+      );
       setInvestigations(data.investigations || []);
       setTotal(data.total || 0);
     } catch (e: any) {
+      if (e.name === "AbortError" || e.message === "canceled" || e.code === "ERR_CANCELED") return;
       setError(e.response?.data?.detail || e.message || "Failed to load investigations.");
     } finally {
       setLoading(false);
@@ -37,6 +46,6 @@ export function useInvestigations(initialParams: InvestigationFilterParams = {})
     error,
     params,
     updateFilters,
-    refetch: fetchInvestigations
+    refetch: () => fetchInvestigations({ forceRefetch: true })
   };
 }

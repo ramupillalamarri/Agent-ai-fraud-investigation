@@ -22,6 +22,9 @@ from app.repositories.evidence_repository import EvidenceRepository
 from app.repositories.recommendation_repository import RecommendationRepository
 from app.repositories.timeline_repository import TimelineRepository
 
+import pytest
+
+@pytest.mark.asyncio
 async def test_all_repositories():
     print("=== Testing Async SQLAlchemy 2.0 Repositories ===")
     

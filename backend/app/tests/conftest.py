@@ -14,11 +14,17 @@ from app.config.settings import settings
 from app.database.database import get_db_session
 from app.models.base import Base
 
+from sqlalchemy.pool import StaticPool
+
 # Use an in-memory SQLite database for testing, or a test PostgreSQL
 # instance. Here we use an in-memory SQLite for self-contained testing.
 TEST_DATABASE_URL = "sqlite+aiosqlite:///:memory:"
 
-test_engine = create_async_engine(TEST_DATABASE_URL, echo=False)
+test_engine = create_async_engine(
+    TEST_DATABASE_URL,
+    poolclass=StaticPool,
+    echo=False,
+)
 TestSessionLocal = async_sessionmaker(
     bind=test_engine,
     class_=AsyncSession,
@@ -31,6 +37,8 @@ settings.ALLOW_PUBLIC_REGISTRATION = True
 settings.INITIAL_ADMIN_EMAIL = "admin@fraudinvestigation.com"
 settings.INITIAL_ADMIN_PASSWORD = "Admin.123"
 settings.BCRYPT_ROUNDS = 4
+settings.APP_ENV = "production"
+settings.ENV = "production"
 
 
 @pytest.fixture(scope="session")

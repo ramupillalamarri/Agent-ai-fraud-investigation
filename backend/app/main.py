@@ -20,6 +20,14 @@ logger = get_logger(__name__)
 async def lifespan(app: FastAPI):
     # Startup tasks
     settings.validate_security()
+    
+    if settings.USE_SQLITE:
+        logger.info("USE_SQLITE=True. Initializing SQLite database tables...")
+        from app.models.base import Base
+        async with async_engine.begin() as conn:
+            await conn.run_sync(Base.metadata.create_all)
+        logger.info("SQLite database tables initialized successfully.")
+
     logger.info("Initializing database connections...")
     db_ok = await check_database_health()
     if not db_ok:
@@ -84,16 +92,17 @@ app.add_middleware(AuditLogMiddleware)
 async def health_check() -> dict:
     """Returns application status details.
 
-    Verifies connection sanity to external dependencies such as databases.
+    Performs dynamic check of backing services such as PostgreSQL.
     """
     db_ok = await check_database_health()
-
     return {
         "status": "healthy" if db_ok else "degraded",
+        "api_version": API_VERSION,
+        "database_connected": db_ok,
         "environment": settings.APP_ENV,
         "database": "connected" if db_ok else "disconnected",
     }
 
 
-# 6. Include API Routers
+# 6. Include Main Route Controllers
 app.include_router(api_router, prefix=settings.API_V1_STR)

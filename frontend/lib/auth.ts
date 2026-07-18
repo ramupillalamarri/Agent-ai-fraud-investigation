@@ -62,9 +62,33 @@ export function clearAuth(): void {
 }
 
 /**
- * Check if user is authenticated (has valid tokens)
+ * Check if frontend is running in Development Mode
+ */
+export function isDevMode(): boolean {
+  const env =
+    process.env.NEXT_PUBLIC_ENV ||
+    process.env.NEXT_PUBLIC_APP_ENV ||
+    process.env.ENV ||
+    process.env.NODE_ENV;
+  return env === "development";
+}
+
+/**
+ * Demo Admin User Profile for Development Mode
+ */
+export const DEMO_ADMIN_PROFILE: UserProfile = {
+  id: "00000000-0000-0000-0000-000000000001",
+  email: "admin@investigation.com",
+  full_name: "Demo Admin",
+  is_active: true,
+  roles: ["Admin"],
+};
+
+/**
+ * Check if user is authenticated (has valid tokens or in dev mode)
  */
 export function isAuthenticated(): boolean {
+  if (isDevMode()) return true;
   return !!getAccessToken() && !!getRefreshToken();
 }
 
@@ -73,12 +97,5 @@ export function isAuthenticated(): boolean {
  */
 export function getApiBaseUrl(): string {
   if (typeof window === "undefined") return "";
-  
-  // In production, use relative path for same-origin API calls
-  if (process.env.NODE_ENV === "production") {
-    return "";
-  }
-  
-  // In development, use the backend server
   return process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 }

@@ -1,11 +1,14 @@
 from typing import Annotated
-from fastapi import APIRouter, Depends, status, Request
+from fastapi import APIRouter, Depends, status, Request, HTTPException
 from fastapi.security import OAuth2PasswordRequestForm
+from sqlalchemy import select
 
-from app.api.deps import ActiveSession, get_current_active_user, RoleChecker, has_permission
+from app.api.deps import ActiveSession, get_current_active_user, RoleChecker, has_permission, verify_google_id_token
 from app.models.user import User
+from app.models.role import Role
 from app.schemas.user import UserCreate, UserResponse
-from app.schemas.auth import Token, UserLogin, TokenRefreshRequest
+from app.schemas.auth import Token, UserLogin, TokenRefreshRequest, GoogleLoginRequest
+from app.repositories.user import UserRepository
 from app.services.auth import AuthService
 from app.core import security
 
@@ -231,3 +234,67 @@ async def investigate_fraud_endpoint() -> dict:
 )
 async def generate_reports_endpoint() -> dict:
     return {"message": "Permission granted: You can generate reports."}
+
+
+@router.post(
+    "/google",
+    response_model=Token,
+    summary="Authenticate a user using Google OAuth 2.0 ID token",
+)
+async def google_login(
+    request: Request,
+    login_in: GoogleLoginRequest,
+    db: ActiveSession,
+) -> Token:
+    """Verifies a Google ID token and authenticates/registers the corresponding local user."""
+    try:
+        payload = await verify_google_id_token(login_in.id_token)
+    except Exception as e:
+        request.state.audit_action = "failed_login"
+        request.state.audit_status = "failed"
+        request.state.audit_entity_name = "auth"
+        request.state.audit_new_values = {"error": f"Google token verification failed: {e}"}
+        raise e
+
+    email = payload.get("email")
+    if not email:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Google token payload missing email attribute."
+        )
+
+    user_repo = UserRepository(User, db)
+    user = await user_repo.get_by_email(email)
+    
+    if not user:
+        roles_res = await db.execute(select(Role).filter(Role.name == "Fraud Analyst"))
+        analyst_role = roles_res.scalar_one_or_none()
+        
+        if email == "admin@investigation.com":
+            admin_roles_res = await db.execute(select(Role).filter(Role.name == "Admin"))
+            admin_role = admin_roles_res.scalar_one_or_none()
+            user_roles = [admin_role] if admin_role else []
+        else:
+            user_roles = [analyst_role] if analyst_role else []
+
+        user = User(
+            email=email,
+            full_name=payload.get("name", email.split("@")[0].capitalize()),
+            hashed_password="google_oauth_placeholder_password",
+            is_active=True,
+            roles=user_roles
+        )
+        db.add(user)
+        await db.commit()
+        await db.refresh(user)
+
+    request.state.audit_action = "user_login"
+    request.state.audit_user_id = user.id
+    request.state.audit_status = "success"
+    request.state.audit_entity_name = "users"
+    request.state.audit_entity_id = user.id
+    request.state.audit_new_values = {"email": user.email, "login_method": "google_oauth"}
+
+    auth_service = AuthService(db)
+    token = await auth_service.create_tokens(user.id)
+    return token

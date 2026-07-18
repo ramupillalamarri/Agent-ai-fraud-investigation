@@ -1,32 +1,27 @@
 "use client";
 
-import { useState, useEffect, Suspense } from "react";
+import { useState, useEffect, Suspense, useRef } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { ShieldCheck, AlertTriangle, ArrowRight, Eye, EyeOff, Lock, Mail, Loader2 } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Separator } from "@/components/ui/separator";
+import { ShieldCheck, AlertTriangle, Loader2 } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
-import { AxiosError } from "axios";
+import { isDevMode } from "@/lib/auth";
 
 function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { login, isAuthenticated } = useAuth();
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [showPassword, setShowPassword] = useState(false);
+  const { loginWithGoogle, isAuthenticated } = useAuth();
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [registered, setRegistered] = useState(false);
+  
+  const googleInitialized = useRef(false);
 
   useEffect(() => {
-    if (isAuthenticated) {
-      router.push("/dashboard");
+    if (isAuthenticated || isDevMode()) {
+      window.location.href = "/dashboard";
     }
-  }, [isAuthenticated, router]);
+  }, [isAuthenticated]);
 
   useEffect(() => {
     if (searchParams.get("registered") === "1") {
@@ -35,48 +30,62 @@ function LoginForm() {
     }
   }, [searchParams, router]);
 
-  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
-    e.preventDefault();
-    if (!email || !password) {
-      setError("Please fill in all credentials.");
-      return;
-    }
+  const loginWithGoogleRef = useRef(loginWithGoogle);
+  useEffect(() => {
+    loginWithGoogleRef.current = loginWithGoogle;
+  }, [loginWithGoogle]);
 
-    setLoading(true);
-    setError("");
-
-    try {
-      await login({ email, password });
-      router.push("/dashboard");
-    } catch (err) {
-      if (err instanceof AxiosError && err.response?.data?.detail) {
-        setError(err.response.data.detail);
-      } else {
-        setError("An unexpected error occurred. Please try again.");
+  useEffect(() => {
+    const handleCallback = async (response: any) => {
+      console.log("Google OAuth credential response received:", response);
+      if (!response || !response.credential) {
+        setError("Google sign-in failed: No credential received from Google.");
+        return;
       }
-      setLoading(false);
-    }
-  }
-
-  async function handleGithubSSO() {
-    setLoading(true);
-    setError("");
-
-    try {
-      await login({
-        email: "analyst@fraudinvestigation.com",
-        password: "Analyst.123"
-      });
-      router.push("/dashboard");
-    } catch (err) {
-      if (err instanceof AxiosError && err.response?.data?.detail) {
-        setError(err.response.data.detail);
-      } else {
-        setError("GitHub SSO failed. Please use standard email login.");
+      setLoading(true);
+      setError("");
+      try {
+        await loginWithGoogleRef.current(response.credential);
+        window.location.href = "/dashboard";
+      } catch (err: any) {
+        console.error("Google sign-in error:", err);
+        const detail = err?.response?.data?.detail || err?.message || "Authentication error";
+        setError(`Google sign-in failed: ${detail}`);
+        setLoading(false);
       }
-      setLoading(false);
-    }
-  }
+    };
+
+    const initializeGoogleSignIn = () => {
+      if (typeof window !== "undefined" && (window as any).google && !googleInitialized.current) {
+        const clientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || "24491737338-7d1vso3ekkavkhbksji6qmub5nms1gd2.apps.googleusercontent.com";
+        (window as any).google.accounts.id.initialize({
+          client_id: clientId,
+          callback: handleCallback,
+          auto_select: false,
+        });
+        googleInitialized.current = true;
+
+        const container = document.getElementById("google-signin-btn");
+        if (container) {
+          container.innerHTML = "";
+          (window as any).google.accounts.id.renderButton(container, {
+            theme: "outline",
+            size: "large",
+            width: 384,
+          });
+        }
+      }
+    };
+
+    const timer = setInterval(() => {
+      if (typeof window !== "undefined" && (window as any).google) {
+        initializeGoogleSignIn();
+        clearInterval(timer);
+      }
+    }, 300);
+
+    return () => clearInterval(timer);
+  }, []);
 
   return (
     <div className="relative flex min-h-screen w-full overflow-hidden bg-background">
@@ -157,14 +166,14 @@ function LoginForm() {
           <div className="space-y-1.5">
             <h2 className="text-2xl font-bold tracking-tight">Welcome back</h2>
             <p className="text-sm text-muted-foreground">
-              Sign in to your enterprise account to continue.
+              Sign in using your corporate Google account to access the dashboard.
             </p>
           </div>
 
           {/* Success message for registered users */}
           {registered && (
             <div className="rounded-lg border border-green-500/20 bg-green-500/5 px-4 py-2.5 text-xs text-green-400">
-              Account created successfully. Please sign in with your credentials.
+              Account registered successfully. Please sign in below.
             </div>
           )}
 
@@ -176,107 +185,24 @@ function LoginForm() {
             </p>
           </div>
 
-          {/* Form */}
-          <form className="space-y-5" onSubmit={handleSubmit}>
-            {error && (
-              <div className="rounded-lg border border-red-500/20 bg-red-500/5 px-4 py-2.5 text-xs text-red-400">
-                {error}
-              </div>
-            )}
+          {/* Error Alert */}
+          {error && (
+            <div className="rounded-lg border border-red-500/20 bg-red-500/5 px-4 py-2.5 text-xs text-red-400">
+              {error}
+            </div>
+          )}
 
-            <div className="space-y-2">
-              <Label htmlFor="email" className="text-sm font-medium">
-                Corporate Email
-              </Label>
-              <div className="relative">
-                <Mail className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                <Input
-                  id="email"
-                  type="email"
-                  placeholder="you@company.com"
-                  className="pl-9"
-                  autoComplete="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  disabled={loading}
-                />
+          {/* Google OAuth Login Button */}
+          <div className="w-full flex justify-center py-4 border border-border/40 rounded-xl bg-sidebar/50 p-6 backdrop-blur-sm shadow-sm transition-all hover:border-border/80">
+            <div className="space-y-4 w-full">
+              <p className="text-xs text-center text-muted-foreground font-medium uppercase tracking-wider">
+                Enterprise Authentication
+              </p>
+              <div className="flex justify-center w-full">
+                <div id="google-signin-btn" />
               </div>
             </div>
-
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <Label htmlFor="password" className="text-sm font-medium">
-                  Password
-                </Label>
-                <Link
-                  href="/forgot-password"
-                  className="text-xs text-muted-foreground transition-colors hover:text-primary"
-                >
-                  Forgot password?
-                </Link>
-              </div>
-              <div className="relative">
-                <Lock className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                <Input
-                  id="password"
-                  type={showPassword ? "text" : "password"}
-                  placeholder="••••••••••••"
-                  className="pl-9 pr-9"
-                  autoComplete="current-password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  disabled={loading}
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground transition-colors hover:text-foreground"
-                  aria-label="Toggle password visibility"
-                  disabled={loading}
-                >
-                  {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                </button>
-              </div>
-            </div>
-
-            <Button type="submit" className="w-full gap-2 font-medium" size="lg" disabled={loading}>
-              {loading ? "Signing in..." : "Sign In to Dashboard"}
-              <ArrowRight className="h-4 w-4" />
-            </Button>
-          </form>
-
-          <div className="space-y-4">
-            <div className="flex items-center gap-3">
-              <Separator className="flex-1" />
-              <span className="text-xs text-muted-foreground">OR</span>
-              <Separator className="flex-1" />
-            </div>
-
-            <Button
-              variant="outline"
-              className="w-full gap-2"
-              size="lg"
-              type="button"
-              disabled={loading}
-              onClick={handleGithubSSO}
-            >
-              <svg className="h-4 w-4" viewBox="0 0 24 24" aria-hidden="true">
-                <path
-                  d="M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12"
-                  fill="currentColor"
-                />
-              </svg>
-              Continue with GitHub SSO
-            </Button>
           </div>
-
-          {/* Footer */}
-          <p className="text-center text-xs text-muted-foreground">
-            Don&apos;t have an account?{" "}
-            <Link href="/register" className="text-primary underline-offset-4 hover:underline">
-              Create one
-            </Link>
-          </p>
         </div>
       </div>
     </div>

@@ -11,7 +11,20 @@ class Settings(BaseSettings):
     # General App Configuration
     APP_NAME: str = "Retail Fraud Investigation API"
     APP_ENV: str = "development"
+    ENV: str = ""
     DEBUG: bool = True
+
+    @property
+    def environment(self) -> str:
+        """Construct environment value checking ENV first, then APP_ENV."""
+        env_val = self.ENV or self.APP_ENV or "development"
+        return env_val.strip().lower()
+
+    @property
+    def is_development(self) -> bool:
+        """Check if application is running in Development mode."""
+        return self.environment == "development"
+
     API_V1_STR: str = "/api/v1"
     SECRET_KEY: str = "replace_with_a_secure_random_key_in_production"
     JWT_ISSUER: str = "retail-fraud-investigation-api"
@@ -22,6 +35,10 @@ class Settings(BaseSettings):
     ALLOW_PUBLIC_REGISTRATION: bool = False
     INITIAL_ADMIN_EMAIL: str = ""
     INITIAL_ADMIN_PASSWORD: str = ""
+
+    # Google OAuth 2.0 Credentials
+    GOOGLE_CLIENT_ID: str = ""
+    GOOGLE_CLIENT_SECRET: str = ""
 
     # CORS Configuration - comma-separated string
     BACKEND_CORS_ORIGINS: str = ""
@@ -45,10 +62,13 @@ class Settings(BaseSettings):
     POSTGRES_DB: str = "fraud_investigation"
     DATABASE_POOL_SIZE: int = 20
     DATABASE_MAX_OVERFLOW: int = 10
+    USE_SQLITE: bool = False
 
     @property
     def async_database_url(self) -> str:
-        """Constructs the asynchronous PostgreSQL connection URI."""
+        """Constructs the asynchronous database connection URI."""
+        if self.USE_SQLITE:
+            return "sqlite+aiosqlite:///./fraud_investigation.db"
         user = urllib.parse.quote_plus(self.POSTGRES_USER)
         password = urllib.parse.quote_plus(self.POSTGRES_PASSWORD)
         return (
@@ -60,7 +80,9 @@ class Settings(BaseSettings):
 
     @property
     def sync_database_url(self) -> str:
-        """Constructs the sync PostgreSQL connection URI (for Alembic)."""
+        """Constructs the sync database connection URI (for Alembic)."""
+        if self.USE_SQLITE:
+            return "sqlite:///./fraud_investigation.db"
         user = urllib.parse.quote_plus(self.POSTGRES_USER)
         password = urllib.parse.quote_plus(self.POSTGRES_PASSWORD)
         return (
@@ -75,13 +97,14 @@ class Settings(BaseSettings):
     LLM_MODEL: str = "gemini-1.5-pro"
     LLM_TEMPERATURE: float = 0.0
 
+
     # Logging config
     LOG_LEVEL: str = "INFO"
     LOG_FORMAT: str = "json"
 
     def validate_security(self) -> None:
         """Reject production configurations that would weaken authentication."""
-        if self.APP_ENV.lower() != "production":
+        if self.environment != "production":
             return
         if self.SECRET_KEY == "replace_with_a_secure_random_key_in_production" or len(
             self.SECRET_KEY

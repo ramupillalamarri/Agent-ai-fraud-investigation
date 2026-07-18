@@ -12,12 +12,16 @@ logger = get_logger(__name__)
 
 # Create the asynchronous database engine
 # configured with standard enterprise connection pool settings
+engine_kwargs = {}
+if not settings.USE_SQLITE:
+    engine_kwargs["pool_size"] = settings.DATABASE_POOL_SIZE
+    engine_kwargs["max_overflow"] = settings.DATABASE_MAX_OVERFLOW
+
 async_engine = create_async_engine(
     settings.async_database_url,
-    pool_size=settings.DATABASE_POOL_SIZE,
-    max_overflow=settings.DATABASE_MAX_OVERFLOW,
     pool_pre_ping=True,  # checks connection liveness before checking it out
     echo=settings.DEBUG,  # prints sql queries in debug/development mode
+    **engine_kwargs
 )
 
 # AsyncSession factory configured to avoid auto-commit and expiring instances

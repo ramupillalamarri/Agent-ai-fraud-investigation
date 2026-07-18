@@ -29,3 +29,9 @@ class UserLogin(BaseModel):
 
     email: EmailStr
     password: str = Field(min_length=1, max_length=72)
+
+
+class GoogleLoginRequest(BaseModel):
+    """Schema representing Google ID token payload for OAuth login."""
+
+    id_token: str = Field(min_length=1)
