@@ -43,3 +43,27 @@ class MerchantAgentConfig:
     high_dispute_rate_threshold: float = 0.05
     inactivity_days_threshold: int = 180
     min_established_transactions: int = 100
+
+    # Merchant Category Analyzer configuration
+    medium_risk_categories: Set[str] = field(default_factory=lambda: {
+        "electronics", "jewelry", "luxury_goods", "travel", "marketplace", "digital_services"
+    })
+    restricted_categories: Set[str] = field(default_factory=lambda: {
+        "restricted_gambling", "restricted_weapons"
+    })
+    category_amount_norms: Dict[str, float] = field(default_factory=lambda: {
+        "grocery": 250.0,
+        "apparel": 500.0,
+        "electronics": 2000.0,
+        "jewelry": 5000.0,
+        "luxury_goods": 5000.0,
+        "crypto_exchange": 1000.0,
+        "gift_cards": 500.0,
+        "gaming": 100.0,
+        "marketplace": 1500.0,
+        "travel": 3000.0,
+        "money_transfer": 1000.0
+    })
+    cross_border_high_risk_categories: Set[str] = field(default_factory=lambda: {
+        "crypto_exchange", "gift_cards", "money_transfer", "jewelry"
+    })
