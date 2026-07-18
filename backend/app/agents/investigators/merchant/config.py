@@ -67,3 +67,14 @@ class MerchantAgentConfig:
     cross_border_high_risk_categories: Set[str] = field(default_factory=lambda: {
         "crypto_exchange", "gift_cards", "money_transfer", "jewelry"
     })
+
+    # Merchant Location Analyzer configuration
+    sanctioned_countries: Set[str] = field(default_factory=lambda: {"KP", "IR", "SY", "CU"})
+    watchlist_countries: Set[str] = field(default_factory=lambda: {"RU", "BY", "SD", "YE"})
+    restricted_regions: Set[str] = field(default_factory=lambda: {"high_risk_zone_01", "unverified_region"})
+    location_risk_weights: Dict[str, float] = field(default_factory=lambda: {
+        "sanctioned": 0.99,
+        "watchlist": 0.75,
+        "restricted": 0.80,
+        "cross_border_mismatch": 0.60
+    })
