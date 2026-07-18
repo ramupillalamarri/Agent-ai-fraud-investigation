@@ -89,3 +89,9 @@ class MerchantAgentConfig:
     growth_rate_multiplier: float = 4.0
     high_freq_low_value_count: int = 20
     high_freq_low_value_threshold: float = 10.0
+
+    # Merchant Reputation Analyzer configuration
+    watchlist_merchants: Set[str] = field(default_factory=lambda: {"MERCH_WATCH_01", "MERCH_SUSPICIOUS_99"})
+    min_allowed_trust_score: float = 0.60
+    max_allowed_risk_score: float = 0.40
+    max_dispute_score: float = 0.25
