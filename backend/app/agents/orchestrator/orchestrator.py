@@ -32,7 +32,23 @@ class InvestigationOrchestrator:
         """
         self.registry = registry
 
+    def health_check(self) -> bool:
+        """Verifies the health check states of all registered agents (including the KnowledgeAgent and its RAG subsystems)."""
+        logger.info("InvestigationOrchestrator health check started")
+        try:
+            for agent in self.registry.get_all_agents():
+                logger.info("Checking agent health: %s", agent.agent_name)
+                if not agent.health_check():
+                    logger.error("Health check failed for agent: %s", agent.agent_name)
+                    return False
+            logger.info("InvestigationOrchestrator health check completed successfully.")
+            return True
+        except Exception as e:
+            logger.error("Health check failed with exception: %s", str(e), exc_info=True)
+            return False
+
     def before_investigation(self, context: InvestigationContext) -> None:
+
         """Lifecycle hook: Invoked before the orchestration workflow starts."""
         print("Investigation Started\n")
         logger.info("Orchestrator starting investigation ID: %s", context.investigation_id)
@@ -96,6 +112,10 @@ class InvestigationOrchestrator:
         
         # 3. Execute each agent sequentially
         for agent in enabled_agents:
+            is_knowledge = agent.agent_name == "KnowledgeAgent"
+            if is_knowledge:
+                logger.info("KnowledgeAgent started")
+
             self.before_agent_execution(agent, context)
             
             try:
@@ -105,14 +125,25 @@ class InvestigationOrchestrator:
                 # Check for runtime skipped or validation fail results returned by execute wrapper
                 if result.status in ("FAILED", "FAILED_VALIDATION"):
                     self.on_agent_failure(agent, ValueError(result.metadata.get("error_message", "Agent execute failed.")), context)
+                    if is_knowledge:
+                        logger.error("KnowledgeAgent failed execution")
                 else:
                     self.after_agent_execution(agent, result, context)
+                    if is_knowledge:
+                        logger.info("Knowledge retrieved")
+                        logger.info("Knowledge merged")
                     
+                if is_knowledge:
+                    logger.info("KnowledgeAgent completed")
+
                 agent_results.append(result)
                 
             except Exception as e:
                 # Capture unhandled edge-case exceptions from agent.execute wrapper
                 self.on_agent_failure(agent, e, context)
+                if is_knowledge:
+                    logger.error("KnowledgeAgent failed execution: %s", str(e))
+                    logger.info("KnowledgeAgent completed")
                 exec_time_ms = int((time.perf_counter() - start_time) * 1000)
                 
                 failed_res = AgentResult(
@@ -126,6 +157,7 @@ class InvestigationOrchestrator:
                     metadata={"error_message": str(e)}
                 )
                 agent_results.append(failed_res)
+
                 
         # 4. Aggregations
         print("Aggregating Evidence\n")
