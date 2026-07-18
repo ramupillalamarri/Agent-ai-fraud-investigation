@@ -20,3 +20,11 @@ class KnowledgeAgentConfig:
     )
     max_tokens: int = 8192
     cache_enabled: bool = True
+
+    # Vector Database settings
+    collection_name: str = "retail_fraud_knowledge"
+    embedding_dimension: int = 1536
+    batch_size: int = 100
+    distance_metric: str = "cosine"
+    persist_directory: str = "chromadb_data"
+
