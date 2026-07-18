@@ -60,7 +60,7 @@ async def test_seeder_command_and_reset_workflow() -> None:
         assert admin is not None
         assert len(admin.roles) == 1
         assert admin.roles[0].name == "Admin"
-        assert len(admin.roles[0].permissions) == 5
+        assert len(admin.roles[0].permissions) == 9
 
         # Check Analyst exists and has correct roles and permissions
         analyst_res = await db.execute(
@@ -72,14 +72,18 @@ async def test_seeder_command_and_reset_workflow() -> None:
         assert analyst is not None
         assert len(analyst.roles) == 1
         assert analyst.roles[0].name == "Fraud Analyst"
-        assert len(analyst.roles[0].permissions) == 3
+        assert len(analyst.roles[0].permissions) == 6
 
         analyst_perms = {p.name for p in analyst.roles[0].permissions}
         assert analyst_perms == {
             "dashboard:view",
             "fraud:investigate",
             "reports:generate",
+            "investigation:read",
+            "investigation:write",
+            "investigation:update",
         }
+
 
     # 4. Clean up and restore default database seeding state for subsequent tests
     async with TestSessionLocal() as db:
