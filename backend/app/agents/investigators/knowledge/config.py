@@ -18,3 +18,5 @@ class KnowledgeAgentConfig:
         "fraud_playbooks", "compliance", "pci_dss", "aml", 
         "merchant_policies", "historical_cases", "internal_guidelines"
     )
+    max_tokens: int = 8192
+    cache_enabled: bool = True
