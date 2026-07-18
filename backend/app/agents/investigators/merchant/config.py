@@ -78,3 +78,14 @@ class MerchantAgentConfig:
         "restricted": 0.80,
         "cross_border_mismatch": 0.60
     })
+
+    # Merchant Velocity Analyzer configuration
+    velocity_burst_multiplier: float = 5.0
+    amount_deviation_multiplier: float = 3.0
+    max_failed_tx_rate: float = 0.20
+    max_refunds_last_day: int = 10
+    max_chargebacks_last_week: int = 5
+    new_customer_ratio_threshold: float = 0.80
+    growth_rate_multiplier: float = 4.0
+    high_freq_low_value_count: int = 20
+    high_freq_low_value_threshold: float = 10.0
