@@ -95,3 +95,11 @@ class MerchantAgentConfig:
     min_allowed_trust_score: float = 0.60
     max_allowed_risk_score: float = 0.40
     max_dispute_score: float = 0.25
+
+    # Analyzer activation toggles
+    enable_profile: bool = True
+    enable_history: bool = True
+    enable_category: bool = True
+    enable_location: bool = True
+    enable_velocity: bool = True
+    enable_reputation: bool = True

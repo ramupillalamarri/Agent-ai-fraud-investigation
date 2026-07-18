@@ -51,103 +51,196 @@ class MerchantInvestigationAgent(BaseAgent):
     def validate(self, context: InvestigationContext) -> None:
         """Checks for minimum properties required for merchant context validation."""
         tx_data = context.transaction_data or {}
-        if "merchant_id" not in tx_data and "merchant" not in tx_data:
+        merchant_id = (
+            tx_data.get("merchant_id") 
+            or tx_data.get("merchant") 
+            or (tx_data.get("merchant_profile") or {}).get("merchant_id")
+        )
+        if not merchant_id:
             raise ValueError("MerchantInvestigationAgent requires either 'merchant_id' or 'merchant' inside transaction_data.")
 
     def health_check(self) -> bool:
-        """Confirms health status."""
-        return True
+        """Verifies configuration integrity, child dependency analyzers availability, and system readiness."""
+        try:
+            # 1. Config check
+            if not isinstance(self.config, MerchantAgentConfig):
+                logger.error("Health check failed: Invalid config instance type.")
+                return False
+            
+            # 2. Child analyzers instantiation check
+            analyzers = [
+                self.profile_analyzer,
+                self.history_analyzer,
+                self.category_analyzer,
+                self.location_analyzer,
+                self.velocity_analyzer,
+                self.reputation_analyzer
+            ]
+            for idx, analyzer in enumerate(analyzers):
+                if analyzer is None:
+                    logger.error("Health check failed: Analyzer at index %d is not initialized.", idx)
+                    return False
+                    
+            logger.info("Health check passed: MerchantInvestigationAgent is healthy and ready.")
+            return True
+        except Exception as e:
+            logger.exception("Health check encountered unhandled exception: %s", str(e))
+            return False
 
     def _execute(self, context: InvestigationContext) -> AgentResult:
-        """Executes the analysis sequence by routing payloads to child analyzers."""
-        tx_data = context.transaction_data
+        """Executes the integrated analysis pipeline by routing context to enabled sub-analyzers sequentially."""
+        import time
+        logger.info("Merchant Agent started")
         
-        # Load transaction history if present
-        history: List[Dict[str, Any]] = context.shared_memory.get("customer_history") or context.metadata.get("customer_history") or []
-        
-        # List of analyzers
-        analyzers_map = {
-            "MerchantProfileAnalyzer": self.profile_analyzer,
-            "MerchantHistoryAnalyzer": self.history_analyzer,
-            "MerchantCategoryAnalyzer": self.category_analyzer,
-            "MerchantLocationAnalyzer": self.location_analyzer,
-            "MerchantVelocityAnalyzer": self.velocity_analyzer,
-            "MerchantReputationAnalyzer": self.reputation_analyzer
-        }
-        
+        # 1. Validation
+        self.validate(context)
+
+        # 2. Map analyzers in execution order with their toggle configurations
+        pipeline = [
+            ("Profile", self.profile_analyzer, getattr(self.config, "enable_profile", True)),
+            ("History", self.history_analyzer, getattr(self.config, "enable_history", True)),
+            ("Category", self.category_analyzer, getattr(self.config, "enable_category", True)),
+            ("Location", self.location_analyzer, getattr(self.config, "enable_location", True)),
+            ("Velocity", self.velocity_analyzer, getattr(self.config, "enable_velocity", True)),
+            ("Reputation", self.reputation_analyzer, getattr(self.config, "enable_reputation", True)),
+        ]
+
         evidence_list: List[Dict[str, Any]] = []
-        analyzers_executed: List[str] = []
-        triggered_rules: List[str] = []
+        recommendations_list: List[str] = []
+        confidence_scores: List[float] = []
+        metadata_breakdown: Dict[str, Any] = {}
         
-        for name, analyzer in analyzers_map.items():
+        # Metrics and execution stats
+        analyzer_latencies: Dict[str, float] = {}
+        successful_analyzers: List[str] = []
+        failed_analyzers: List[str] = []
+        skipped_analyzers: List[str] = []
+        
+        start_total_time = time.perf_counter()
+        
+        logger.info("Analyzer execution started")
+
+        for name, analyzer, is_enabled in pipeline:
+            if not is_enabled:
+                logger.info("Analyzer %s is skipped (disabled by config)", name)
+                skipped_analyzers.append(name)
+                continue
+                
+            start_analyzer_time = time.perf_counter()
             try:
-                self.log_info("Executing analyzer sub-module: %s", name)
-                res = analyzer.analyze(tx_data, history)
-                evidence_list.extend(res)
-                analyzers_executed.append(name)
-                for ev in res:
-                    triggered_rules.append(ev["type"])
+                logger.info("Executing analyzer sub-module: %s", name)
+                
+                # Execute analyzer using full context payload
+                res = analyzer.analyze(context)
+                
+                # Record latency
+                latency_ms = (time.perf_counter() - start_analyzer_time) * 1000.0
+                analyzer_latencies[name] = latency_ms
+                
+                if isinstance(res, dict):
+                    # Structured context mode return format
+                    evidence_list.extend(res.get("evidence") or [])
+                    recommendations_list.extend(res.get("recommendations") or [])
+                    confidence_scores.append(res.get("confidence_score", 1.0))
+                    metadata_breakdown[name] = res.get("metadata") or {}
+                else:
+                    # Legacy dict mode fallback returning flat list of evidence dicts
+                    evidence_list.extend(res or [])
+                    confidence_scores.append(1.0) # default confidence
+                    
+                successful_analyzers.append(name)
+                logger.info("Analyzer completed: %s in %.2fms", name, latency_ms)
+                
             except Exception as e:
-                self.logger.exception("Error executing analyzer %s: %s", name, str(e))
+                # Capture failures gracefully, log them, and keep executing the pipeline
+                latency_ms = (time.perf_counter() - start_analyzer_time) * 1000.0
+                analyzer_latencies[name] = latency_ms
+                failed_analyzers.append(name)
+                
+                logger.error("Analyzer failed: %s after %.2fms with error: %s", name, latency_ms, str(e), exc_info=True)
+                
                 evidence_list.append({
                     "type": "AnalyzerError",
-                    "severity": "LOW",
+                    "severity": "HIGH",
+                    "title": f"Sub-module Execution Crash: {name}",
+                    "description": f"Internal crash during sub-module execution in {name} analyzer: {str(e)}",
                     "confidence": 0.0,
-                    "description": f"Internal crash during sub-module execution in {name}: {str(e)}",
-                    "source": name
+                    "source": f"Merchant{name}Analyzer",
+                    "metadata": {"error": str(e), "latency_ms": latency_ms}
                 })
+                recommendations_list.append("Escalate investigation")
+
+        total_execution_time = (time.perf_counter() - start_total_time) * 1000.0
+        logger.info("Aggregation completed")
 
         # Deduplicate evidence list
         seen_evidence = set()
         unique_evidence = []
         for ev in evidence_list:
-            key = (ev["type"], ev["severity"], ev["source"])
+            key = (ev.get("type"), ev.get("severity"), ev.get("source"), ev.get("description"))
             if key not in seen_evidence:
                 seen_evidence.add(key)
                 unique_evidence.append(ev)
 
-        findings: List[str] = []
-        recommendations: List[str] = []
+        # Deduplicate recommendations list
+        unique_recommendations = list(set(recommendations_list))
 
-        # Risk severity triggers
-        has_crit = any(ev["severity"] == "CRITICAL" for ev in unique_evidence)
-        has_high = any(ev["severity"] == "HIGH" for ev in unique_evidence)
-        has_med = any(ev["severity"] == "MEDIUM" for ev in unique_evidence)
-
-        if unique_evidence:
-            overall_confidence = sum(ev["confidence"] for ev in unique_evidence) / len(unique_evidence)
+        # Calculate overall trust confidence score
+        if confidence_scores:
+            overall_confidence = sum(confidence_scores) / len(confidence_scores)
         else:
-            overall_confidence = 1.0  # safe certitude
+            overall_confidence = 1.0
+
+        # Generate summary findings
+        findings: List[str] = []
+        has_crit = any(ev.get("severity") == "CRITICAL" for ev in unique_evidence)
+        has_high = any(ev.get("severity") == "HIGH" for ev in unique_evidence)
+        has_med = any(ev.get("severity") == "MEDIUM" for ev in unique_evidence)
+        
+        merchant_id = (
+            (context.transaction_data or {}).get("merchant_id")
+            or (context.transaction_data or {}).get("merchant")
+            or ((context.transaction_data or {}).get("merchant_profile") or {}).get("merchant_id")
+        )
 
         if has_crit or has_high:
-            findings.append("Critical risk factors flagged on merchant registration/history.")
-            recommendations.append("Block transaction")
-            recommendations.append("Flag merchant for manual compliance review")
+            findings.append(f"High risk factors flagged for merchant '{merchant_id}' checks.")
+            if "Block transaction" not in unique_recommendations:
+                unique_recommendations.append("Block transaction")
+            if "Flag merchant for manual compliance review" not in unique_recommendations:
+                unique_recommendations.append("Flag merchant for manual compliance review")
         elif has_med:
-            findings.append("Moderate risk merchant categorization or velocity spike flagged.")
-            recommendations.append("Flag transaction for manual review")
-            recommendations.append("Limit maximum transaction amount on card")
-        elif unique_evidence:
-            findings.append("Minor merchant profile updates detected.")
-            recommendations.append("Manual review")
+            findings.append(f"Moderate risk merchant category/velocity spike flagged for merchant '{merchant_id}'.")
+            if "Flag transaction for manual review" not in unique_recommendations:
+                unique_recommendations.append("Flag transaction for manual review")
         else:
-            findings.append("Merchant status, history, and category risk parameters are optimal.")
-            recommendations.append("No actions required")
+            findings.append(f"Merchant '{merchant_id}' risk parameters are optimal.")
+            if not unique_recommendations or unique_recommendations == ["Increase monitoring"]:
+                unique_recommendations = ["Approve merchant"]
 
+        # Final metadata construction
         metadata = {
-            "analyzers_executed": analyzers_executed,
-            "triggered_rules": triggered_rules,
-            "analyzed_features": list(tx_data.keys()),
-            "confidence_breakdown": {ev["type"]: ev["confidence"] for ev in unique_evidence}
+            "execution_statistics": {
+                "total_execution_time_ms": total_execution_time,
+                "analyzer_latencies_ms": analyzer_latencies,
+                "successful_analyzers": successful_analyzers,
+                "failed_analyzers": failed_analyzers,
+                "skipped_analyzers": skipped_analyzers
+            },
+            "analyzers_executed": successful_analyzers + failed_analyzers,
+            "confidence_breakdown": metadata_breakdown,
+            "triggered_rules": list(set(ev.get("type") for ev in unique_evidence))
         }
+
+        logger.info("Merchant Agent completed in %.2fms", total_execution_time)
 
         return AgentResult(
             agent_name=self.agent_name,
-            status="SUCCESS",
+            status="SUCCESS" if not failed_analyzers else "PARTIAL_SUCCESS",
             confidence_score=overall_confidence,
             findings=findings,
-            recommendations=recommendations,
+            recommendations=unique_recommendations,
             evidence=unique_evidence,
-            execution_time_ms=0,  # calculated automatically by BaseAgent execute
+            execution_time_ms=int(total_execution_time),
             metadata=metadata
         )
